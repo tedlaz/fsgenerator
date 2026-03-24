@@ -48,6 +48,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ── Layout ───────────────────────────────────────────── */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
 /* ── Sidebar ──────────────────────────────────────────── */
 .sidebar {
   min-height: 100vh;
@@ -90,6 +96,10 @@ body {
 }
 
 .sidebar .nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
   flex-direction: column;
   gap: 2px;
 }
@@ -133,19 +143,76 @@ body {
   margin-top: auto;
 }
 
-.sidebar .dropdown-toggle {
+/* ── Dropdown (pure CSS) ──────────────────────────────── */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-toggle {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.8);
   border-radius: var(--radius-sm);
   font-size: 0.8rem;
+  font-family: inherit;
   padding: 0.45rem 0.75rem;
+  width: 100%;
+  cursor: pointer;
   transition: all var(--transition);
+  text-align: left;
 }
 
-.sidebar .dropdown-toggle:hover {
+.dropdown-toggle::after {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+  border-top: 4px solid currentColor;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+  float: right;
+  margin-top: 0.4rem;
+}
+
+.dropdown-toggle:hover {
   background: rgba(255, 255, 255, 0.14);
   color: #fff;
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 0.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  padding: 0.25rem 0;
+  list-style: none;
+  z-index: 100;
+}
+
+.dropdown.open .dropdown-menu {
+  display: block;
+}
+
+.dropdown-item {
+  display: block;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.825rem;
+  color: var(--text);
+  text-decoration: none;
+  transition: background var(--transition);
+}
+
+.dropdown-item:hover {
+  background: var(--primary-light);
+  color: var(--primary);
 }
 
 /* ── Main content ─────────────────────────────────────── */
@@ -323,6 +390,21 @@ h1 {
   display: flex;
   gap: 0.4rem;
   flex-wrap: nowrap;
+  align-items: stretch;
+}
+
+.table .actions .btn {
+  line-height: 1;
+  box-sizing: border-box;
+}
+
+.table .actions form {
+  margin: 0;
+  display: flex;
+}
+
+.table .actions form .btn {
+  height: 100%;
 }
 
 /* ── Forms ─────────────────────────────────────────────── */

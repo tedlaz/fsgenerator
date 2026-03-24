@@ -128,8 +128,10 @@ def list_{{ entity.name }}s(request: Request, session: Session = Depends(get_ses
     t = make_t(request.app.state.translations, lang)
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
     items = List{{ entity.class_name }}s(repo)()
+    error = request.query_params.get("error")
     return templates.TemplateResponse(request, "{{ entity.name }}_list.html", {
         "items": items,
+        "error": error,
         "t": t,
         "languages": list(request.app.state.translations.keys()),
         "current_lang": lang,
@@ -263,8 +265,16 @@ def update_{{ entity.name }}_submit(
 
 
 @router.post("/{{ '{' }}item_id{{ '}' }}/delete")
-def delete_{{ entity.name }}_submit(item_id: {{ id_type }}, session: Session = Depends(get_session)):
-    repo = SQLAlchemy{{ entity.class_name }}Repository(session)
-    Delete{{ entity.class_name }}(repo)(item_id)
-    session.commit()
-    return RedirectResponse(url="/{{ entity.name }}", status_code=303)
+def delete_{{ entity.name }}_submit(item_id: {{ id_type }}, request: Request, session: Session = Depends(get_session)):
+    lang = request.cookies.get("lang", "en")
+    t = make_t(request.app.state.translations, lang)
+    try:
+        repo = SQLAlchemy{{ entity.class_name }}Repository(session)
+        Delete{{ entity.class_name }}(repo)(item_id)
+        session.commit()
+        return RedirectResponse(url="/{{ entity.name }}", status_code=303)
+    except Exception as exc:
+        session.rollback()
+        from urllib.parse import quote
+        error_msg = quote(_format_error(exc, t))
+        return RedirectResponse(url=f"/{{ entity.name }}?error={error_msg}", status_code=303)

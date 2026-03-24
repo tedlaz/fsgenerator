@@ -3,6 +3,12 @@
 {% block title %}{% endraw %}{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }} {{ t("common.list") }}{% endraw %}{% raw %}{% endblock %}
 
 {% block content %}{% endraw %}
+{% raw %}{% if error %}{% endraw %}
+<div class="alert alert-danger">
+    {% raw %}{{ error }}{% endraw %}
+    <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+</div>
+{% raw %}{% endif %}{% endraw %}
 <div class="toolbar">
     <h1 style="margin-bottom:0">{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }} {{ t("common.list") }}{% endraw %}</h1>
     <a href="/{{ entity.name }}/new" class="btn btn-primary">{% raw %}{{ t("common.add_new") }}{% endraw %}</a>
