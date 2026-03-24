@@ -1,6 +1,6 @@
 [project]
 name = "fsgenerator"
-version = "0.3.4"
+version = "0.4.0"
 description = "Rapid full stack development with JSON entities"
 readme = "README.md"
 requires-python = ">=3.14"
