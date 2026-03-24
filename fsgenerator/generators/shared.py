@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from jinja2 import Environment
 
 from fsgenerator.parser import AppConfig, EntityDef
@@ -63,6 +65,13 @@ def generate(entities: list[EntityDef], env: Environment, config: AppConfig) -> 
     files.append((
         "infrastructure/web/fastapi/routers/i18n.py",
         i18n_router_template.render(),
+    ))
+
+    # Custom CSS
+    css_path = Path(__file__).resolve().parent.parent / "templates" / "style.css"
+    files.append((
+        "static/style.css",
+        css_path.read_text(encoding="utf-8"),
     ))
 
     return files

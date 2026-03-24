@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import DataError, IntegrityError, OperationalError
 
@@ -15,6 +16,7 @@ from infrastructure.web.fastapi.routers.{{ entity.name }}_frontend import router
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="{{ app_name }}")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.state.translations = load_translations()
 

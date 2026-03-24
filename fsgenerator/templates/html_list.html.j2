@@ -3,9 +3,12 @@
 {% block title %}{% endraw %}{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }} {{ t("common.list") }}{% endraw %}{% raw %}{% endblock %}
 
 {% block content %}{% endraw %}
-<h1>{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }} {{ t("common.list") }}{% endraw %}</h1>
-<a href="/{{ entity.name }}/new" class="btn btn-primary mb-3">{% raw %}{{ t("common.add_new") }}{% endraw %}</a>
-<table class="table table-striped">
+<div class="toolbar">
+    <h1 style="margin-bottom:0">{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }} {{ t("common.list") }}{% endraw %}</h1>
+    <a href="/{{ entity.name }}/new" class="btn btn-primary">{% raw %}{{ t("common.add_new") }}{% endraw %}</a>
+</div>
+<div class="table-wrapper">
+<table class="table">
     <thead>
         <tr>
             <th>{% raw %}{{ t("common.id") }}{% endraw %}</th>
@@ -22,7 +25,7 @@
         {% raw %}{% for item in items %}{% endraw %}
 
         <tr>
-            <td>{% raw %}{{ item.id }}{% endraw %}</td>
+            <td><span class="badge">{% raw %}{{ item.id }}{% endraw %}</span></td>
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
             <td>{% raw %}{{ item.{% endraw %}{{ rel.field_name }}{% raw %} }}{% endraw %}</td>
 {% endfor %}
@@ -34,14 +37,17 @@
 {% endif %}
 {% endfor %}
             <td>
-                <a href="/{{ entity.name }}/{% raw %}{{ item.id }}{% endraw %}/edit" class="btn btn-sm btn-warning">{% raw %}{{ t("common.edit") }}{% endraw %}</a>
-                <form method="post" action="/{{ entity.name }}/{% raw %}{{ item.id }}{% endraw %}/delete" style="display:inline">
-                    <button type="submit" class="btn btn-sm btn-danger">{% raw %}{{ t("common.delete") }}{% endraw %}</button>
-                </form>
+                <div class="actions">
+                    <a href="/{{ entity.name }}/{% raw %}{{ item.id }}{% endraw %}/edit" class="btn btn-sm btn-warning">{% raw %}{{ t("common.edit") }}{% endraw %}</a>
+                    <form class="delete-form" method="post" action="/{{ entity.name }}/{% raw %}{{ item.id }}{% endraw %}/delete">
+                        <button type="submit" class="btn btn-sm btn-danger">{% raw %}{{ t("common.delete") }}{% endraw %}</button>
+                    </form>
+                </div>
             </td>
         </tr>
         {% raw %}{% endfor %}{% endraw %}
 
     </tbody>
 </table>
+</div>
 {% raw %}{% endblock %}{% endraw %}

@@ -5,14 +5,15 @@
 {% block content %}{% endraw %}
 <h1>{% raw %}{% if item and item.id %}{{ t("common.edit") }}{% else %}{{ t("common.new") }}{% endif %} {{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }}{% endraw %}</h1>
 {% raw %}{% if error %}{% endraw %}
-<div class="alert alert-danger alert-dismissible fade show" role="alert">
+<div class="alert alert-danger">
     {% raw %}{{ error }}{% endraw %}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
 </div>
 {% raw %}{% endif %}{% endraw %}
+<div class="form-card">
 <form method="post">
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
-    <div class="mb-3">
+    <div class="form-group">
         <label for="{{ rel.field_name }}_id" class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</label>
         <select class="form-select" id="{{ rel.field_name }}_id" name="{{ rel.field_name }}_id">
             <option value="">{% raw %}{{ t("common.select") }}{% endraw %}</option>
@@ -25,7 +26,7 @@
     </div>
 {% endfor %}
 {% for field in entity.fields %}
-    <div class="mb-3">
+    <div class="form-group">
         <label for="{{ field.name }}" class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</label>
 {% if field.type == "select" and field.options %}
         <select class="form-select" id="{{ field.name }}" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
@@ -55,7 +56,10 @@
 {% endif %}
     </div>
 {% endfor %}
-    <button type="submit" class="btn btn-primary">{% raw %}{{ t("common.save") }}{% endraw %}</button>
-    <a href="/{{ entity.name }}" class="btn btn-secondary">{% raw %}{{ t("common.cancel") }}{% endraw %}</a>
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{% raw %}{{ t("common.save") }}{% endraw %}</button>
+        <a href="/{{ entity.name }}" class="btn btn-secondary">{% raw %}{{ t("common.cancel") }}{% endraw %}</a>
+    </div>
 </form>
+</div>
 {% raw %}{% endblock %}{% endraw %}
