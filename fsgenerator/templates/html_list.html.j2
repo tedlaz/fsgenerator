@@ -1,0 +1,47 @@
+{%- raw %}{% extends "base.html" %}
+
+{% block title %}{% endraw %}{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }} {{ t("common.list") }}{% endraw %}{% raw %}{% endblock %}
+
+{% block content %}{% endraw %}
+<h1>{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }} {{ t("common.list") }}{% endraw %}</h1>
+<a href="/{{ entity.name }}/new" class="btn btn-primary mb-3">{% raw %}{{ t("common.add_new") }}{% endraw %}</a>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>{% raw %}{{ t("common.id") }}{% endraw %}</th>
+{% for field in entity.fields %}
+            <th>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</th>
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+            <th>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</th>
+{% endfor %}
+            <th>{% raw %}{{ t("common.actions") }}{% endraw %}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% raw %}{% for item in items %}{% endraw %}
+
+        <tr>
+            <td>{% raw %}{{ item.id }}{% endraw %}</td>
+{% for field in entity.fields %}
+{% if field.type == "select" and field.options %}
+            <td>{% raw %}{{ {% endraw %}{{ '{' }}{% for opt_value, opt_label in field.options %}{{ opt_value }}: "{{ opt_label }}"{{ ", " if not loop.last else "" }}{% endfor %}{{ '}' }}{% raw %}.get(item.{% endraw %}{{ field.name }}{% raw %}, item.{% endraw %}{{ field.name }}{% raw %}) }}{% endraw %}</td>
+{% else %}
+            <td>{% raw %}{{ item.{% endraw %}{{ field.name }}{% raw %} }}{% endraw %}</td>
+{% endif %}
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+            <td>{% raw %}{{ item.{% endraw %}{{ rel.field_name }}{% raw %} }}{% endraw %}</td>
+{% endfor %}
+            <td>
+                <a href="/{{ entity.name }}/{% raw %}{{ item.id }}{% endraw %}/edit" class="btn btn-sm btn-warning">{% raw %}{{ t("common.edit") }}{% endraw %}</a>
+                <form method="post" action="/{{ entity.name }}/{% raw %}{{ item.id }}{% endraw %}/delete" style="display:inline">
+                    <button type="submit" class="btn btn-sm btn-danger">{% raw %}{{ t("common.delete") }}{% endraw %}</button>
+                </form>
+            </td>
+        </tr>
+        {% raw %}{% endfor %}{% endraw %}
+
+    </tbody>
+</table>
+{% raw %}{% endblock %}{% endraw %}

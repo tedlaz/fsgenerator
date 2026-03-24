@@ -1,0 +1,16 @@
+from fastapi import APIRouter, Request
+from fastapi.responses import RedirectResponse
+
+router = APIRouter(tags=["i18n"])
+
+
+@router.get("/set-lang/{lang}")
+def set_language(lang: str, request: Request):
+    """Set the active language via cookie and redirect back."""
+    translations = request.app.state.translations
+    referer = request.headers.get("referer", "/")
+    if lang not in translations:
+        return RedirectResponse(url=referer, status_code=303)
+    response = RedirectResponse(url=referer, status_code=303)
+    response.set_cookie(key="lang", value=lang)
+    return response

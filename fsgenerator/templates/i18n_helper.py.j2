@@ -1,0 +1,42 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+
+def load_translations(i18n_dir: str | Path = "i18n") -> dict:
+    """Load all JSON translation files from the i18n directory."""
+    translations: dict = {}
+    i18n_path = Path(i18n_dir)
+    if not i18n_path.is_dir():
+        return translations
+    for filepath in sorted(i18n_path.glob("*.json")):
+        lang_code = filepath.stem
+        translations[lang_code] = json.loads(filepath.read_text(encoding="utf-8"))
+    return translations
+
+
+def make_t(translations: dict, lang: str, default: str = "en"):
+    """Create a translation function with dot-notation key lookup."""
+    def t(key: str) -> str:
+        parts = key.split(".")
+        # Try selected language
+        val = translations.get(lang, {})
+        for part in parts:
+            if isinstance(val, dict):
+                val = val.get(part)
+            else:
+                val = None
+                break
+        if val is not None:
+            return val
+        # Fallback to default language
+        val = translations.get(default, {})
+        for part in parts:
+            if isinstance(val, dict):
+                val = val.get(part)
+            else:
+                val = None
+                break
+        return val if val is not None else key
+    return t

@@ -1,0 +1,34 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+{% for imp in imports %}
+{{ imp }}
+{% endfor %}
+
+
+@dataclass
+class {{ entity.class_name }}:
+{% for f in entity.fields if not f.is_null %}
+    {{ f.name }}: {{ field_types[f.name] }}
+{% endfor %}
+    id: {{ id_type }} | None = None
+{% for f in entity.fields if f.is_null %}
+    {{ f.name }}: {{ field_types[f.name] }} | None = None
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+    {{ rel.field_name }}_id: {{ id_type }} | None = None
+    {{ rel.field_name }}: {{ rel.target_entity | capitalize }} | None = None
+{% endfor %}
+{% if entity.representation %}
+
+    def __str__(self) -> str:
+        parts = []
+{% for rep_field in entity.representation %}
+{% if rep_field in entity.relation_names %}
+        parts.append(str(self.{{ rep_field }}) if self.{{ rep_field }} else "")
+{% else %}
+        parts.append(str(self.{{ rep_field }}) if self.{{ rep_field }} is not None else "")
+{% endif %}
+{% endfor %}
+        return " ".join(parts).strip()
+{% endif %}

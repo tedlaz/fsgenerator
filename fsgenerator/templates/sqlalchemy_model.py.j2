@@ -1,0 +1,37 @@
+from __future__ import annotations
+
+{% if uuid_import %}
+from uuid import UUID, uuid4
+{% endif %}
+from sqlalchemy import {{ sqla_imports | join(", ") }}
+from sqlalchemy.orm import Mapped, mapped_column{% if has_relationships %}, relationship{% endif %}
+
+from infrastructure.persistence.sqlalchemy.models import Base
+
+{% for imp in extra_imports %}
+{{ imp }}
+{% endfor %}
+
+
+class {{ entity.class_name }}Model(Base):
+    __tablename__ = "{{ entity.name }}"
+
+    id: Mapped[{{ id_type }}] = mapped_column({{ id_sqla_type }}, primary_key=True, {{ id_sqla_default }})
+{% for field in entity.fields %}
+    {{ field.name }}: Mapped[{{ field_types[field.name] }}] = mapped_column({{ sqla_column_types[field.name] }}, nullable={{ field.is_null }})
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+    {{ rel.field_name }}_id: Mapped[{{ id_type }} | None] = mapped_column({{ fk_sqla_type }}, ForeignKey("{{ rel.target_entity }}.id"), nullable=True)
+    {{ rel.field_name }}: Mapped["{{ rel.target_entity | capitalize }}Model"] = relationship()
+{% endfor %}
+{% if table_args %}
+
+    __table_args__ = (
+{% for uq in entity.uniques %}
+        UniqueConstraint({{ uq.columns | map("quote") | join(", ") }}, name="{{ uq.name }}"),
+{% endfor %}
+{% for field in entity.fields if field.length %}
+        CheckConstraint("length({{ field.name }}) = {{ field.length }}", name="ck_{{ entity.name }}_{{ field.name }}_len"),
+{% endfor %}
+    )
+{% endif %}

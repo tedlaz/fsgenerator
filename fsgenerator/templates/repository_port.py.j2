@@ -1,0 +1,16 @@
+from __future__ import annotations
+
+from typing import Any, Protocol
+
+{% for imp in imports %}
+{{ imp }}
+{% endfor %}
+from domain.entities.{{ entity.name }} import {{ entity.class_name }}
+
+
+class {{ entity.class_name }}Repository(Protocol):
+    def get_by_id(self, id: {{ id_type }}) -> {{ entity.class_name }} | None: ...
+    def list_all(self) -> list[{{ entity.class_name }}]: ...
+    def create(self, entity: {{ entity.class_name }}) -> {{ entity.class_name }}: ...
+    def update(self, id: {{ id_type }}, updates: dict[str, Any]) -> {{ entity.class_name }} | None: ...
+    def delete(self, id: {{ id_type }}) -> bool: ...

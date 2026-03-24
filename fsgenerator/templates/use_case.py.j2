@@ -1,0 +1,50 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+{% for imp in imports %}
+{{ imp }}
+{% endfor %}
+from domain.entities.{{ entity.name }} import {{ entity.class_name }}
+from domain.ports.{{ entity.name }} import {{ entity.class_name }}Repository
+
+
+@dataclass
+class List{{ entity.class_name }}s:
+    repository: {{ entity.class_name }}Repository
+
+    def __call__(self) -> list[{{ entity.class_name }}]:
+        return self.repository.list_all()
+
+
+@dataclass
+class Get{{ entity.class_name }}:
+    repository: {{ entity.class_name }}Repository
+
+    def __call__(self, id: {{ id_type }}) -> {{ entity.class_name }} | None:
+        return self.repository.get_by_id(id)
+
+
+@dataclass
+class Create{{ entity.class_name }}:
+    repository: {{ entity.class_name }}Repository
+
+    def __call__(self, entity: {{ entity.class_name }}) -> {{ entity.class_name }}:
+        return self.repository.create(entity)
+
+
+@dataclass
+class Update{{ entity.class_name }}:
+    repository: {{ entity.class_name }}Repository
+
+    def __call__(self, id: {{ id_type }}, updates: dict[str, Any]) -> {{ entity.class_name }} | None:
+        return self.repository.update(id, updates)
+
+
+@dataclass
+class Delete{{ entity.class_name }}:
+    repository: {{ entity.class_name }}Repository
+
+    def __call__(self, id: {{ id_type }}) -> bool:
+        return self.repository.delete(id)

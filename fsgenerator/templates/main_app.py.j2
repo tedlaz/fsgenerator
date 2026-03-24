@@ -1,0 +1,107 @@
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.exc import DataError, IntegrityError, OperationalError
+
+from i18n_helper import load_translations, make_t
+from infrastructure.persistence.sqlalchemy.models import Base
+from infrastructure.web.fastapi.dependencies import engine
+from infrastructure.web.fastapi.routers.i18n import router as i18n_router
+{% for entity in entities %}
+from infrastructure.web.fastapi.routers.{{ entity.name }} import router as {{ entity.name }}_router
+from infrastructure.web.fastapi.routers.{{ entity.name }}_frontend import router as {{ entity.name }}_frontend_router
+{% endfor %}
+
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="{{ app_name }}")
+
+app.state.translations = load_translations()
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.detail, "status_code": exc.status_code},
+    )
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError):
+    orig = str(exc.orig).lower()
+    if "unique" in orig or "duplicate" in orig:
+        return JSONResponse(
+            status_code=409,
+            content={"error": "A record with the same unique value already exists", "detail": str(exc.orig), "status_code": 409},
+        )
+    if "foreign" in orig or "fk" in orig:
+        return JSONResponse(
+            status_code=409,
+            content={"error": "Referenced record does not exist", "detail": str(exc.orig), "status_code": 409},
+        )
+    if "not null" in orig or "notnull" in orig:
+        return JSONResponse(
+            status_code=422,
+            content={"error": "A required field is missing", "detail": str(exc.orig), "status_code": 422},
+        )
+    return JSONResponse(
+        status_code=409,
+        content={"error": "Data integrity violation", "detail": str(exc.orig), "status_code": 409},
+    )
+
+
+@app.exception_handler(DataError)
+async def data_error_handler(request: Request, exc: DataError):
+    return JSONResponse(
+        status_code=422,
+        content={"error": "Invalid data format", "detail": str(exc.orig), "status_code": 422},
+    )
+
+
+@app.exception_handler(OperationalError)
+async def operational_error_handler(request: Request, exc: OperationalError):
+    return JSONResponse(
+        status_code=503,
+        content={"error": "Database is unavailable", "status_code": 503},
+    )
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    return JSONResponse(
+        status_code=422,
+        content={"error": str(exc), "status_code": 422},
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "status_code": 500},
+    )
+
+
+{% for entity in entities %}
+app.include_router({{ entity.name }}_router, prefix="/api/v1")
+{% endfor %}
+
+{% for entity in entities %}
+app.include_router({{ entity.name }}_frontend_router)
+{% endfor %}
+
+app.include_router(i18n_router)
+
+templates = Jinja2Templates(directory="templates")
+
+
+@app.get("/", response_class=HTMLResponse)
+def home(request: Request):
+    lang = request.cookies.get("lang", "en")
+    t = make_t(app.state.translations, lang)
+    return templates.TemplateResponse(request, "home.html", {
+        "t": t,
+        "languages": list(app.state.translations.keys()),
+        "current_lang": lang,
+    })

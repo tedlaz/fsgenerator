@@ -1,0 +1,19 @@
+{%- raw %}{% extends "base.html" %}
+
+{% block title %}{% endraw %}{{ app_name }}{% raw %}{% endblock %}
+
+{% block content %}{% endraw %}
+<h1>{{ app_name }}</h1>
+<div class="row mt-4">
+{% for entity in entities %}
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }}{% endraw %}</h5>
+                <a href="/{{ entity.name }}" class="btn btn-primary">{% raw %}{{ t("common.manage") }}{% endraw %}</a>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+</div>
+{% raw %}{% endblock %}{% endraw %}

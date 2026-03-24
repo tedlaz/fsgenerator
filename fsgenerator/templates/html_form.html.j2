@@ -1,0 +1,61 @@
+{%- raw %}{% extends "base.html" %}
+
+{% block title %}{% endraw %}{% raw %}{% if item and item.id %}{{ t("common.edit") }}{% else %}{{ t("common.new") }}{% endif %} {{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }}{% endraw %}{% raw %}{% endblock %}
+
+{% block content %}{% endraw %}
+<h1>{% raw %}{% if item and item.id %}{{ t("common.edit") }}{% else %}{{ t("common.new") }}{% endif %} {{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }}{% endraw %}</h1>
+{% raw %}{% if error %}{% endraw %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    {% raw %}{{ error }}{% endraw %}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% raw %}{% endif %}{% endraw %}
+<form method="post">
+{% for field in entity.fields %}
+    <div class="mb-3">
+        <label for="{{ field.name }}" class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</label>
+{% if field.type == "select" and field.options %}
+        <select class="form-select" id="{{ field.name }}" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+            <option value="">{% raw %}{{ t("common.select") }}{% endraw %}</option>
+{% for opt_value, opt_label in field.options %}
+            <option value="{{ opt_value }}" {% raw %}{% if item and item.{% endraw %}{{ field.name }}{% raw %} | string == "{% endraw %}{{ opt_value }}{% raw %}" %}selected{% endif %}{% endraw %}>{{ opt_label }}</option>
+{% endfor %}
+        </select>
+{% elif field.type in ("iso_date",) %}
+        <input type="date" class="form-control" id="{{ field.name }}" name="{{ field.name }}"
+               value="{% raw %}{{ item.{% endraw %}{{ field.name }}{% raw %} if item else '' }}{% endraw %}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("iso_datetime",) %}
+        <input type="datetime-local" class="form-control" id="{{ field.name }}" name="{{ field.name }}"
+               value="{% raw %}{{ item.{% endraw %}{{ field.name }}{% raw %} if item else '' }}{% endraw %}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("time",) %}
+        <input type="time" class="form-control" id="{{ field.name }}" name="{{ field.name }}"
+               value="{% raw %}{{ item.{% endraw %}{{ field.name }}{% raw %} if item else '' }}{% endraw %}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("integer", "value", "float", "percent") %}
+        <input type="number" class="form-control" id="{{ field.name }}" name="{{ field.name }}"
+               value="{% raw %}{{ item.{% endraw %}{{ field.name }}{% raw %} if item else '' }}{% endraw %}"{{ ' required' if not field.is_null else '' }}{{ ' step="0.01"' if field.type in ("value", "percent") else '' }}>
+{% elif field.type == "string_numeric" %}
+        <input type="text" class="form-control" id="{{ field.name }}" name="{{ field.name }}"
+               pattern="\d+" value="{% raw %}{{ item.{% endraw %}{{ field.name }}{% raw %} if item else '' }}{% endraw %}"{{ ' required' if not field.is_null else '' }}{{ ' maxlength="%d"' % (field.length or field.max_length) if (field.length or field.max_length) else '' }}{{ ' minlength="%d"' % field.length if field.length else '' }}>
+{% else %}
+        <input type="text" class="form-control" id="{{ field.name }}" name="{{ field.name }}"
+               value="{% raw %}{{ item.{% endraw %}{{ field.name }}{% raw %} if item else '' }}{% endraw %}"{{ ' required' if not field.is_null else '' }}{{ ' maxlength="%d"' % (field.length or field.max_length) if (field.length or field.max_length) else '' }}{{ ' minlength="%d"' % field.length if field.length else '' }}>
+{% endif %}
+    </div>
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+    <div class="mb-3">
+        <label for="{{ rel.field_name }}_id" class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</label>
+        <select class="form-select" id="{{ rel.field_name }}_id" name="{{ rel.field_name }}_id">
+            <option value="">{% raw %}{{ t("common.select") }}{% endraw %}</option>
+            {% raw %}{% for opt in {% endraw %}{{ rel.field_name }}_options{% raw %} %}{% endraw %}
+
+            <option value="{% raw %}{{ opt.id }}{% endraw %}" {% raw %}{% if item and item.{% endraw %}{{ rel.field_name }}_id{% raw %} | string == opt.id | string %}selected{% endif %}{% endraw %}>{% raw %}{{ opt }}{% endraw %}</option>
+            {% raw %}{% endfor %}{% endraw %}
+
+        </select>
+    </div>
+{% endfor %}
+    <button type="submit" class="btn btn-primary">{% raw %}{{ t("common.save") }}{% endraw %}</button>
+    <a href="/{{ entity.name }}" class="btn btn-secondary">{% raw %}{{ t("common.cancel") }}{% endraw %}</a>
+</form>
+{% raw %}{% endblock %}{% endraw %}

@@ -1,0 +1,88 @@
+from __future__ import annotations
+
+from typing import Any
+
+from sqlalchemy.orm import Session
+
+{% for imp in imports %}
+{{ imp }}
+{% endfor %}
+from domain.entities.{{ entity.name }} import {{ entity.class_name }}
+from infrastructure.persistence.sqlalchemy.models.{{ entity.name }} import {{ entity.class_name }}Model
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+from domain.entities.{{ rel.target_entity }} import {{ rel.target_entity | capitalize }}
+{% endfor %}
+
+
+def _convert_{{ entity.name }}(model: {{ entity.class_name }}Model) -> {{ entity.class_name }}:
+    return {{ entity.class_name }}(
+        id=model.id,
+{% for field in entity.fields %}
+        {{ field.name }}=model.{{ field.name }},
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+        {{ rel.field_name }}_id=model.{{ rel.field_name }}_id,
+        {{ rel.field_name }}=_convert_{{ rel.target_entity }}(model.{{ rel.field_name }}) if model.{{ rel.field_name }} else None,
+{% endfor %}
+    )
+
+
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+def _convert_{{ rel.target_entity }}(model) -> {{ rel.target_entity | capitalize }}:
+    from infrastructure.persistence.sqlalchemy.repositories.{{ rel.target_entity }} import _convert_{{ rel.target_entity }} as _conv
+    return _conv(model)
+
+
+{% endfor %}
+class SQLAlchemy{{ entity.class_name }}Repository:
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def _to_entity(self, model: {{ entity.class_name }}Model) -> {{ entity.class_name }}:
+        return _convert_{{ entity.name }}(model)
+
+    def _to_model(self, entity: {{ entity.class_name }}) -> {{ entity.class_name }}Model:
+        return {{ entity.class_name }}Model(
+            id=entity.id,
+{% for field in entity.fields %}
+            {{ field.name }}=entity.{{ field.name }},
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+            {{ rel.field_name }}_id=entity.{{ rel.field_name }}_id,
+{% endfor %}
+        )
+
+    def get_by_id(self, id: {{ id_type }}) -> {{ entity.class_name }} | None:
+        model = self._session.get({{ entity.class_name }}Model, id)
+        if model is None:
+            return None
+        return self._to_entity(model)
+
+    def list_all(self) -> list[{{ entity.class_name }}]:
+        models = self._session.query({{ entity.class_name }}Model).all()
+        return [self._to_entity(m) for m in models]
+
+    def create(self, entity: {{ entity.class_name }}) -> {{ entity.class_name }}:
+        model = self._to_model(entity)
+        model.id = None
+        self._session.add(model)
+        self._session.flush()
+        return self._to_entity(model)
+
+    def update(self, id: {{ id_type }}, updates: dict[str, Any]) -> {{ entity.class_name }} | None:
+        model = self._session.get({{ entity.class_name }}Model, id)
+        if model is None:
+            return None
+        for key, value in updates.items():
+            if hasattr(model, key):
+                setattr(model, key, value)
+        self._session.flush()
+        return self._to_entity(model)
+
+    def delete(self, id: {{ id_type }}) -> bool:
+        model = self._session.get({{ entity.class_name }}Model, id)
+        if model is None:
+            return False
+        self._session.delete(model)
+        self._session.flush()
+        return True

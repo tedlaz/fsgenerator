@@ -1,0 +1,12 @@
+{
+    "name": "company",
+    "representation": ["name"],
+    "fields": {
+        "name": {"type": "string", "maxLength": 80},
+        "afm": {"type": "string_numeric", "length": 9}
+    },
+    "unique": {
+        "unique_name": ["name"],
+        "unique_afm": ["afm"]
+    }
+}

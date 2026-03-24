@@ -1,0 +1,270 @@
+from __future__ import annotations
+
+{% for imp in imports %}
+{{ imp }}
+{% endfor %}
+from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from i18n_helper import make_t
+
+from application.use_cases.{{ entity.name }} import (
+    Create{{ entity.class_name }},
+    Delete{{ entity.class_name }},
+    Get{{ entity.class_name }},
+    List{{ entity.class_name }}s,
+    Update{{ entity.class_name }},
+)
+from domain.entities.{{ entity.name }} import {{ entity.class_name }}
+from infrastructure.persistence.sqlalchemy.repositories.{{ entity.name }} import (
+    SQLAlchemy{{ entity.class_name }}Repository,
+)
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+from application.use_cases.{{ rel.target_entity }} import List{{ rel.target_entity | capitalize }}s
+from infrastructure.persistence.sqlalchemy.repositories.{{ rel.target_entity }} import (
+    SQLAlchemy{{ rel.target_entity | capitalize }}Repository,
+)
+{% endfor %}
+from infrastructure.web.fastapi.dependencies import get_session
+
+router = APIRouter(prefix="/{{ entity.name }}", tags=["{{ entity.name }}-frontend"])
+templates = Jinja2Templates(directory="templates")
+
+
+def _get_relation_options(session: Session) -> dict:
+    options = {}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+    {{ rel.field_name }}_repo = SQLAlchemy{{ rel.target_entity | capitalize }}Repository(session)
+    options["{{ rel.field_name }}_options"] = List{{ rel.target_entity | capitalize }}s({{ rel.field_name }}_repo)()
+{% endfor %}
+    return options
+
+
+def _parse_form_data(
+{% for field in entity.fields %}
+    {{ field.name }}: str | None,
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+    {{ rel.field_name }}_id: str | None,
+{% endfor %}
+) -> dict:
+    data = {}
+{% for field in entity.fields %}
+{% if field.type in ("integer", "select") %}
+    data["{{ field.name }}"] = int({{ field.name }}) if {{ field.name }} else None
+{% elif field.type in ("float",) %}
+    data["{{ field.name }}"] = float({{ field.name }}) if {{ field.name }} else None
+{% elif field.type in ("value", "percent") %}
+    from decimal import Decimal
+    data["{{ field.name }}"] = Decimal({{ field.name }}) if {{ field.name }} else None
+{% elif field.type == "iso_date" %}
+    from datetime import date as _date
+    data["{{ field.name }}"] = _date.fromisoformat({{ field.name }}) if {{ field.name }} else None
+{% elif field.type == "iso_datetime" %}
+    from datetime import datetime as _datetime
+    data["{{ field.name }}"] = _datetime.fromisoformat({{ field.name }}) if {{ field.name }} else None
+{% elif field.type == "time" %}
+    from datetime import time as _time
+    data["{{ field.name }}"] = _time.fromisoformat({{ field.name }}) if {{ field.name }} else None
+{% else %}
+    data["{{ field.name }}"] = {{ field.name }} or None
+{% endif %}
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+{% if id_type == "int" %}
+    data["{{ rel.field_name }}_id"] = int({{ rel.field_name }}_id) if {{ rel.field_name }}_id else None
+{% else %}
+    from uuid import UUID as _UUID
+    data["{{ rel.field_name }}_id"] = _UUID({{ rel.field_name }}_id) if {{ rel.field_name }}_id else None
+{% endif %}
+{% endfor %}
+    return data
+
+
+def _build_form_item(
+{% for field in entity.fields %}
+    {{ field.name }}: str | None,
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+    {{ rel.field_name }}_id: str | None,
+{% endfor %}
+    existing_id=None,
+):
+    """Build a simple object to re-populate the form on error."""
+    class _FormData:
+        pass
+    item = _FormData()
+    item.id = existing_id
+{% for field in entity.fields %}
+    item.{{ field.name }} = {{ field.name }} or ""
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+    item.{{ rel.field_name }}_id = {{ rel.field_name }}_id or ""
+{% endfor %}
+    return item
+
+
+def _format_error(exc: Exception, t) -> str:
+    if isinstance(exc, IntegrityError):
+        orig = str(exc.orig).lower()
+        if "unique" in orig or "duplicate" in orig:
+            return t("common.error_unique")
+        if "foreign" in orig or "fk" in orig:
+            return t("common.error_foreign")
+        if "not null" in orig or "notnull" in orig:
+            return t("common.error_notnull")
+        if "check" in orig:
+            return t("common.error_check")
+        return t("common.error_integrity")
+    return t("common.error_generic")
+
+
+@router.get("/", response_class=HTMLResponse)
+def list_{{ entity.name }}s(request: Request, session: Session = Depends(get_session)):
+    lang = request.cookies.get("lang", "en")
+    t = make_t(request.app.state.translations, lang)
+    repo = SQLAlchemy{{ entity.class_name }}Repository(session)
+    items = List{{ entity.class_name }}s(repo)()
+    return templates.TemplateResponse(request, "{{ entity.name }}_list.html", {
+        "items": items,
+        "t": t,
+        "languages": list(request.app.state.translations.keys()),
+        "current_lang": lang,
+    })
+
+
+@router.get("/new", response_class=HTMLResponse)
+def new_{{ entity.name }}_form(request: Request, session: Session = Depends(get_session)):
+    lang = request.cookies.get("lang", "en")
+    t = make_t(request.app.state.translations, lang)
+    options = _get_relation_options(session)
+    return templates.TemplateResponse(request, "{{ entity.name }}_form.html", {
+        "item": None, "error": None, **options,
+        "t": t,
+        "languages": list(request.app.state.translations.keys()),
+        "current_lang": lang,
+    })
+
+
+@router.post("/new")
+def create_{{ entity.name }}_submit(
+    request: Request,
+    session: Session = Depends(get_session),
+{% for field in entity.fields %}
+    {{ field.name }}: str{{ " | None" if field.is_null else "" }} = Form({{ "None" if field.is_null else "..." }}),
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+    {{ rel.field_name }}_id: str | None = Form(None),
+{% endfor %}
+):
+    lang = request.cookies.get("lang", "en")
+    t = make_t(request.app.state.translations, lang)
+    try:
+        data = _parse_form_data(
+{% for field in entity.fields %}
+            {{ field.name }}={{ field.name }},
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+            {{ rel.field_name }}_id={{ rel.field_name }}_id,
+{% endfor %}
+        )
+        repo = SQLAlchemy{{ entity.class_name }}Repository(session)
+        use_case = Create{{ entity.class_name }}(repo)
+        entity = {{ entity.class_name }}(**data)
+        use_case(entity)
+        session.commit()
+        return RedirectResponse(url="/{{ entity.name }}", status_code=303)
+    except Exception as exc:
+        session.rollback()
+        options = _get_relation_options(session)
+        item = _build_form_item(
+{% for field in entity.fields %}
+            {{ field.name }}={{ field.name }},
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+            {{ rel.field_name }}_id={{ rel.field_name }}_id,
+{% endfor %}
+        )
+        return templates.TemplateResponse(request, "{{ entity.name }}_form.html", {
+            "item": item, "error": _format_error(exc, t), **options,
+            "t": t,
+            "languages": list(request.app.state.translations.keys()),
+            "current_lang": lang,
+        })
+
+
+@router.get("/{{ '{' }}item_id{{ '}' }}/edit", response_class=HTMLResponse)
+def edit_{{ entity.name }}_form(item_id: {{ id_type }}, request: Request, session: Session = Depends(get_session)):
+    lang = request.cookies.get("lang", "en")
+    t = make_t(request.app.state.translations, lang)
+    repo = SQLAlchemy{{ entity.class_name }}Repository(session)
+    item = Get{{ entity.class_name }}(repo)(item_id)
+    if item is None:
+        return RedirectResponse(url="/{{ entity.name }}", status_code=303)
+    options = _get_relation_options(session)
+    return templates.TemplateResponse(request, "{{ entity.name }}_form.html", {
+        "item": item, "error": None, **options,
+        "t": t,
+        "languages": list(request.app.state.translations.keys()),
+        "current_lang": lang,
+    })
+
+
+@router.post("/{{ '{' }}item_id{{ '}' }}/edit")
+def update_{{ entity.name }}_submit(
+    item_id: {{ id_type }},
+    request: Request,
+    session: Session = Depends(get_session),
+{% for field in entity.fields %}
+    {{ field.name }}: str | None = Form(None),
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+    {{ rel.field_name }}_id: str | None = Form(None),
+{% endfor %}
+):
+    lang = request.cookies.get("lang", "en")
+    t = make_t(request.app.state.translations, lang)
+    try:
+        all_data = _parse_form_data(
+{% for field in entity.fields %}
+            {{ field.name }}={{ field.name }},
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+            {{ rel.field_name }}_id={{ rel.field_name }}_id,
+{% endfor %}
+        )
+        updates = {k: v for k, v in all_data.items() if v is not None}
+        repo = SQLAlchemy{{ entity.class_name }}Repository(session)
+        use_case = Update{{ entity.class_name }}(repo)
+        use_case(item_id, updates)
+        session.commit()
+        return RedirectResponse(url="/{{ entity.name }}", status_code=303)
+    except Exception as exc:
+        session.rollback()
+        options = _get_relation_options(session)
+        item = _build_form_item(
+{% for field in entity.fields %}
+            {{ field.name }}={{ field.name }},
+{% endfor %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+            {{ rel.field_name }}_id={{ rel.field_name }}_id,
+{% endfor %}
+            existing_id=item_id,
+        )
+        return templates.TemplateResponse(request, "{{ entity.name }}_form.html", {
+            "item": item, "error": _format_error(exc, t), **options,
+            "t": t,
+            "languages": list(request.app.state.translations.keys()),
+            "current_lang": lang,
+        })
+
+
+@router.post("/{{ '{' }}item_id{{ '}' }}/delete")
+def delete_{{ entity.name }}_submit(item_id: {{ id_type }}, session: Session = Depends(get_session)):
+    repo = SQLAlchemy{{ entity.class_name }}Repository(session)
+    Delete{{ entity.class_name }}(repo)(item_id)
+    session.commit()
+    return RedirectResponse(url="/{{ entity.name }}", status_code=303)
