@@ -1,0 +1,74 @@
+{%- raw %}{% extends "base.html" %}
+
+{% block title %}{% endraw %}{% raw %}{{ t("auth.user_management") }}{% endraw %}{% raw %}{% endblock %}
+
+{% block content %}{% endraw %}
+<div class="toolbar">
+    <h1 style="margin-bottom:0">{% raw %}{{ t("auth.user_management") }}{% endraw %}</h1>
+</div>
+{% raw %}{% if error %}{% endraw %}
+<div class="alert alert-danger">
+    {% raw %}{{ error }}{% endraw %}
+    <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+</div>
+{% raw %}{% endif %}{% endraw %}
+{% raw %}{% if success %}{% endraw %}
+<div class="alert alert-success">
+    {% raw %}{{ success }}{% endraw %}
+    <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+</div>
+{% raw %}{% endif %}{% endraw %}
+<div class="table-wrapper">
+<table class="table">
+    <thead>
+        <tr>
+            <th>{% raw %}{{ t("common.id") }}{% endraw %}</th>
+            <th>{% raw %}{{ t("auth.email") }}{% endraw %}</th>
+            <th>{% raw %}{{ t("auth.active") }}{% endraw %}</th>
+            <th>{% raw %}{{ t("auth.admin") }}{% endraw %}</th>
+            <th>{% raw %}{{ t("auth.created_at") }}{% endraw %}</th>
+            <th>{% raw %}{{ t("common.actions") }}{% endraw %}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% raw %}{% for u in users %}{% endraw %}
+        <tr>
+            <td><span class="badge">{% raw %}{{ u.id }}{% endraw %}</span></td>
+            <td>{% raw %}{{ u.email }}{% endraw %}</td>
+            <td>
+                {% raw %}{% if u.is_active %}{% endraw %}
+                <span class="badge badge-success">{% raw %}{{ t("auth.yes") }}{% endraw %}</span>
+                {% raw %}{% else %}{% endraw %}
+                <span class="badge badge-danger">{% raw %}{{ t("auth.no") }}{% endraw %}</span>
+                {% raw %}{% endif %}{% endraw %}
+            </td>
+            <td>
+                {% raw %}{% if u.is_admin %}{% endraw %}
+                <span class="badge badge-success">{% raw %}{{ t("auth.yes") }}{% endraw %}</span>
+                {% raw %}{% else %}{% endraw %}
+                <span class="badge badge-danger">{% raw %}{{ t("auth.no") }}{% endraw %}</span>
+                {% raw %}{% endif %}{% endraw %}
+            </td>
+            <td>{% raw %}{{ u.created_at.strftime("%Y-%m-%d %H:%M") if u.created_at else "" }}{% endraw %}</td>
+            <td>
+                <div class="actions">
+                    {% raw %}{% if u.id != current_user.id %}{% endraw %}
+                    <form method="post" action="/admin/users/{% raw %}{{ u.id }}{% endraw %}/toggle-active" style="display:flex">
+                        <button type="submit" class="btn btn-sm {% raw %}{{ 'btn-danger' if u.is_active else 'btn-primary' }}{% endraw %}">
+                            {% raw %}{% if u.is_active %}{% endraw %}{% raw %}{{ t("auth.deactivate") }}{% endraw %}{% raw %}{% else %}{% endraw %}{% raw %}{{ t("auth.activate") }}{% endraw %}{% raw %}{% endif %}{% endraw %}
+                        </button>
+                    </form>
+                    <form method="post" action="/admin/users/{% raw %}{{ u.id }}{% endraw %}/toggle-admin" style="display:flex">
+                        <button type="submit" class="btn btn-sm btn-warning">
+                            {% raw %}{% if u.is_admin %}{% endraw %}{% raw %}{{ t("auth.revoke_admin") }}{% endraw %}{% raw %}{% else %}{% endraw %}{% raw %}{{ t("auth.grant_admin") }}{% endraw %}{% raw %}{% endif %}{% endraw %}
+                        </button>
+                    </form>
+                    {% raw %}{% endif %}{% endraw %}
+                </div>
+            </td>
+        </tr>
+        {% raw %}{% endfor %}{% endraw %}
+    </tbody>
+</table>
+</div>
+{% raw %}{% endblock %}{% endraw %}

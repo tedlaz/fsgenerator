@@ -4,6 +4,7 @@ from __future__ import annotations
 {{ imp }}
 {% endfor %}
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from application.dtos.{{ entity.name }} import (
@@ -18,6 +19,7 @@ from application.use_cases.{{ entity.name }} import (
     List{{ entity.class_name }}s,
     Update{{ entity.class_name }},
 )
+from auth_security import decode_access_token, get_current_user_or_none
 from domain.entities.{{ entity.name }} import {{ entity.class_name }}
 from infrastructure.persistence.sqlalchemy.repositories.{{ entity.name }} import (
     SQLAlchemy{{ entity.class_name }}Repository,
@@ -25,17 +27,28 @@ from infrastructure.persistence.sqlalchemy.repositories.{{ entity.name }} import
 from infrastructure.web.fastapi.dependencies import get_session
 
 router = APIRouter(prefix="/{{ entity.name }}", tags=["{{ entity.name }}"])
+_bearer = HTTPBearer()
+
+
+def _require_auth(
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    session: Session = Depends(get_session),
+):
+    user = get_current_user_or_none(session, credentials.credentials)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return user
 
 
 @router.get("/", response_model=list[{{ entity.class_name }}Response])
-def list_{{ entity.name }}s(session: Session = Depends(get_session)):
+def list_{{ entity.name }}s(session: Session = Depends(get_session), _user=Depends(_require_auth)):
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
     use_case = List{{ entity.class_name }}s(repo)
     return use_case()
 
 
 @router.get("/{{ '{' }}{{ entity.name }}_id{{ '}' }}", response_model={{ entity.class_name }}Response)
-def get_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, session: Session = Depends(get_session)):
+def get_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, session: Session = Depends(get_session), _user=Depends(_require_auth)):
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
     use_case = Get{{ entity.class_name }}(repo)
     result = use_case({{ entity.name }}_id)
@@ -45,7 +58,7 @@ def get_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, session: Session 
 
 
 @router.post("/", response_model={{ entity.class_name }}Response, status_code=201)
-def create_{{ entity.name }}(data: {{ entity.class_name }}Create, session: Session = Depends(get_session)):
+def create_{{ entity.name }}(data: {{ entity.class_name }}Create, session: Session = Depends(get_session), _user=Depends(_require_auth)):
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
     use_case = Create{{ entity.class_name }}(repo)
     entity = {{ entity.class_name }}(**data.model_dump())
@@ -55,7 +68,7 @@ def create_{{ entity.name }}(data: {{ entity.class_name }}Create, session: Sessi
 
 
 @router.put("/{{ '{' }}{{ entity.name }}_id{{ '}' }}", response_model={{ entity.class_name }}Response)
-def update_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, data: {{ entity.class_name }}Update, session: Session = Depends(get_session)):
+def update_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, data: {{ entity.class_name }}Update, session: Session = Depends(get_session), _user=Depends(_require_auth)):
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
     use_case = Update{{ entity.class_name }}(repo)
     result = use_case({{ entity.name }}_id, data.model_dump(exclude_unset=True))
@@ -66,7 +79,7 @@ def update_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, data: {{ entit
 
 
 @router.delete("/{{ '{' }}{{ entity.name }}_id{{ '}' }}", status_code=204)
-def delete_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, session: Session = Depends(get_session)):
+def delete_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, session: Session = Depends(get_session), _user=Depends(_require_auth)):
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
     use_case = Delete{{ entity.class_name }}(repo)
     if not use_case({{ entity.name }}_id):

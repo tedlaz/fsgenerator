@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="{% raw %}{{ current_lang }}{% endraw %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% raw %}{{ t("auth.register") }}{% endraw %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <span class="brand-icon">{{ app_name[0] | upper }}</span>
+                <span>{{ app_name }}</span>
+            </div>
+            <h2>{% raw %}{{ t("auth.register") }}{% endraw %}</h2>
+            {% raw %}{% if error %}{% endraw %}
+            <div class="alert alert-danger">
+                {% raw %}{{ error }}{% endraw %}
+                <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+            </div>
+            {% raw %}{% endif %}{% endraw %}
+            <form method="post" action="/register">
+                <div class="form-group">
+                    <label for="email" class="form-label">{% raw %}{{ t("auth.email") }}{% endraw %}</label>
+                    <input type="email" class="form-control" id="email" name="email" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="password" class="form-label">{% raw %}{{ t("auth.password") }}{% endraw %}</label>
+                    <input type="password" class="form-control" id="password" name="password" required minlength="8" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label for="password_confirm" class="form-label">{% raw %}{{ t("auth.password_confirm") }}{% endraw %}</label>
+                    <input type="password" class="form-control" id="password_confirm" name="password_confirm" required minlength="8" autocomplete="new-password">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" style="width:100%">{% raw %}{{ t("auth.register") }}{% endraw %}</button>
+                </div>
+            </form>
+            <p class="auth-link">{% raw %}{{ t("auth.have_account") }}{% endraw %} <a href="/login">{% raw %}{{ t("auth.login") }}{% endraw %}</a></p>
+        </div>
+    </div>
+</body>
+</html>

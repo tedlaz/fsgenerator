@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="{% raw %}{{ current_lang }}{% endraw %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% raw %}{{ t("auth.login") }}{% endraw %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <span class="brand-icon">{{ app_name[0] | upper }}</span>
+                <span>{{ app_name }}</span>
+            </div>
+            <h2>{% raw %}{{ t("auth.login") }}{% endraw %}</h2>
+            {% raw %}{% if error %}{% endraw %}
+            <div class="alert alert-danger">
+                {% raw %}{{ error }}{% endraw %}
+                <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+            </div>
+            {% raw %}{% endif %}{% endraw %}
+            {% raw %}{% if success %}{% endraw %}
+            <div class="alert alert-success">
+                {% raw %}{{ success }}{% endraw %}
+                <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+            </div>
+            {% raw %}{% endif %}{% endraw %}
+            <form method="post" action="/login">
+                <div class="form-group">
+                    <label for="email" class="form-label">{% raw %}{{ t("auth.email") }}{% endraw %}</label>
+                    <input type="email" class="form-control" id="email" name="email" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="password" class="form-label">{% raw %}{{ t("auth.password") }}{% endraw %}</label>
+                    <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" style="width:100%">{% raw %}{{ t("auth.login") }}{% endraw %}</button>
+                </div>
+            </form>
+            <p class="auth-link">{% raw %}{{ t("auth.no_account") }}{% endraw %} <a href="/register">{% raw %}{{ t("auth.register") }}{% endraw %}</a></p>
+        </div>
+    </div>
+</body>
+</html>

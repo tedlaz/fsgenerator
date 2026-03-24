@@ -22,9 +22,24 @@
                     <a class="nav-link" href="/{{ entity.name }}">{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }}{% endraw %}</a>
                 </li>
 {% endfor %}
+                {% raw %}{% if current_user and current_user.is_admin %}{% endraw %}
+                <li class="nav-item">
+                    <a class="nav-link" href="/admin/users">{% raw %}{{ t("auth.user_management") }}{% endraw %}</a>
+                </li>
+                {% raw %}{% endif %}{% endraw %}
             </ul>
             <div class="sidebar-footer">
                 <hr>
+                {% raw %}{% if current_user %}{% endraw %}
+                <div class="sidebar-user">
+                    <span class="sidebar-user-email">{% raw %}{{ current_user.email }}{% endraw %}</span>
+                    <div class="sidebar-user-links">
+                        <a href="/change-password">{% raw %}{{ t("auth.change_password") }}{% endraw %}</a>
+                        <a href="/logout">{% raw %}{{ t("auth.logout") }}{% endraw %}</a>
+                    </div>
+                </div>
+                <hr>
+                {% raw %}{% endif %}{% endraw %}
                 <div class="dropdown">
                     <button class="dropdown-toggle" type="button" onclick="this.parentElement.classList.toggle('open')">
                         {% raw %}{{ current_lang }}{% endraw %}

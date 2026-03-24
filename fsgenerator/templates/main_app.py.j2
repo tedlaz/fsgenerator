@@ -1,12 +1,15 @@
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import DataError, IntegrityError, OperationalError
 
+from auth_security import get_current_user_or_none, seed_admin
 from i18n_helper import load_translations, make_t
 from infrastructure.persistence.sqlalchemy.models import Base
-from infrastructure.web.fastapi.dependencies import engine
+from infrastructure.persistence.sqlalchemy.models.auth import UserModel  # noqa: F401
+from infrastructure.web.fastapi.dependencies import engine, get_session
+from infrastructure.web.fastapi.routers.auth import router as auth_router
 from infrastructure.web.fastapi.routers.i18n import router as i18n_router
 {% for entity in entities %}
 from infrastructure.web.fastapi.routers.{{ entity.name }} import router as {{ entity.name }}_router
@@ -14,6 +17,13 @@ from infrastructure.web.fastapi.routers.{{ entity.name }}_frontend import router
 {% endfor %}
 
 Base.metadata.create_all(bind=engine)
+
+# Seed default admin user
+_seed_session = next(get_session())
+try:
+    seed_admin(_seed_session)
+finally:
+    _seed_session.close()
 
 app = FastAPI(title="{{ app_name }}")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -85,6 +95,28 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
+PUBLIC_PATHS = {"/login", "/register", "/set-lang", "/static", "/api", "/docs", "/openapi.json", "/redoc"}
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    path = request.url.path
+    if any(path == p or path.startswith(p + "/") for p in PUBLIC_PATHS):
+        return await call_next(request)
+    token = request.cookies.get("access_token")
+    session = next(get_session())
+    try:
+        user = get_current_user_or_none(session, token)
+    finally:
+        session.close()
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    request.state.current_user = user
+    return await call_next(request)
+
+
+app.include_router(auth_router)
+
 {% for entity in entities %}
 app.include_router({{ entity.name }}_router, prefix="/api/v1")
 {% endfor %}
@@ -106,4 +138,5 @@ def home(request: Request):
         "t": t,
         "languages": list(app.state.translations.keys()),
         "current_lang": lang,
+        "current_user": getattr(request.state, "current_user", None),
     })

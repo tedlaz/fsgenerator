@@ -1,0 +1,237 @@
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+
+from auth_security import (
+    create_access_token,
+    decode_access_token,
+    get_current_user_or_none,
+    hash_password,
+    seed_admin,
+    verify_password,
+)
+from i18n_helper import make_t
+from infrastructure.persistence.sqlalchemy.models.auth import UserModel
+from infrastructure.web.fastapi.dependencies import get_session
+
+router = APIRouter(tags=["auth-frontend"])
+templates = Jinja2Templates(directory="templates")
+
+
+def _t_and_lang(request: Request):
+    lang = request.cookies.get("lang", "en")
+    t = make_t(request.app.state.translations, lang)
+    return t, lang
+
+
+def _base_ctx(request: Request, t, lang, **extra):
+    user_token = request.cookies.get("access_token")
+    session = next(get_session())
+    current_user = get_current_user_or_none(session, user_token)
+    session.close()
+    return {
+        "request": request,
+        "t": t,
+        "languages": list(request.app.state.translations.keys()),
+        "current_lang": lang,
+        "current_user": current_user,
+        **extra,
+    }
+
+
+# ── Login ───────────────────────────────────────────────
+@router.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    t, lang = _t_and_lang(request)
+    return templates.TemplateResponse(request, "login.html", {
+        "t": t, "error": None,
+        "languages": list(request.app.state.translations.keys()),
+        "current_lang": lang,
+    })
+
+
+@router.post("/login")
+def login_submit(
+    request: Request,
+    session: Session = Depends(get_session),
+    email: str = Form(...),
+    password: str = Form(...),
+):
+    t, lang = _t_and_lang(request)
+    user = session.query(UserModel).filter(UserModel.email == email).first()
+    if not user or not verify_password(password, user.hashed_password):
+        return templates.TemplateResponse(request, "login.html", {
+            "t": t, "error": t("auth.invalid_credentials"),
+            "languages": list(request.app.state.translations.keys()),
+            "current_lang": lang,
+        })
+    if not user.is_active:
+        return templates.TemplateResponse(request, "login.html", {
+            "t": t, "error": t("auth.account_inactive"),
+            "languages": list(request.app.state.translations.keys()),
+            "current_lang": lang,
+        })
+    token = create_access_token({"sub": user.email, "admin": user.is_admin})
+    response = RedirectResponse(url="/", status_code=303)
+    response.set_cookie(
+        key="access_token", value=token,
+        httponly=True, samesite="lax", max_age=3600,
+    )
+    return response
+
+
+# ── Register ────────────────────────────────────────────
+@router.get("/register", response_class=HTMLResponse)
+def register_page(request: Request):
+    t, lang = _t_and_lang(request)
+    return templates.TemplateResponse(request, "register.html", {
+        "t": t, "error": None,
+        "languages": list(request.app.state.translations.keys()),
+        "current_lang": lang,
+    })
+
+
+@router.post("/register")
+def register_submit(
+    request: Request,
+    session: Session = Depends(get_session),
+    email: str = Form(...),
+    password: str = Form(...),
+    password_confirm: str = Form(...),
+):
+    t, lang = _t_and_lang(request)
+
+    if password != password_confirm:
+        return templates.TemplateResponse(request, "register.html", {
+            "t": t, "error": t("auth.password_mismatch"),
+            "languages": list(request.app.state.translations.keys()),
+            "current_lang": lang,
+        })
+    if len(password) < 8:
+        return templates.TemplateResponse(request, "register.html", {
+            "t": t, "error": t("auth.password_too_short"),
+            "languages": list(request.app.state.translations.keys()),
+            "current_lang": lang,
+        })
+
+    existing = session.query(UserModel).filter(UserModel.email == email).first()
+    if existing:
+        return templates.TemplateResponse(request, "register.html", {
+            "t": t, "error": t("auth.email_taken"),
+            "languages": list(request.app.state.translations.keys()),
+            "current_lang": lang,
+        })
+
+    user = UserModel(
+        email=email,
+        hashed_password=hash_password(password),
+        is_active=False,
+        is_admin=False,
+    )
+    session.add(user)
+    session.commit()
+    return templates.TemplateResponse(request, "login.html", {
+        "t": t, "error": None, "success": t("auth.registration_pending"),
+        "languages": list(request.app.state.translations.keys()),
+        "current_lang": lang,
+    })
+
+
+# ── Logout ──────────────────────────────────────────────
+@router.get("/logout")
+def logout():
+    response = RedirectResponse(url="/login", status_code=303)
+    response.delete_cookie("access_token")
+    return response
+
+
+# ── Change password ─────────────────────────────────────
+@router.get("/change-password", response_class=HTMLResponse)
+def change_password_page(request: Request, session: Session = Depends(get_session)):
+    t, lang = _t_and_lang(request)
+    user = get_current_user_or_none(session, request.cookies.get("access_token"))
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    return templates.TemplateResponse(request, "change_password.html", {
+        **_base_ctx(request, t, lang), "error": None, "success": None,
+    })
+
+
+@router.post("/change-password")
+def change_password_submit(
+    request: Request,
+    session: Session = Depends(get_session),
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    new_password_confirm: str = Form(...),
+):
+    t, lang = _t_and_lang(request)
+    user = get_current_user_or_none(session, request.cookies.get("access_token"))
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+
+    ctx = _base_ctx(request, t, lang)
+
+    if not verify_password(current_password, user.hashed_password):
+        return templates.TemplateResponse(request, "change_password.html", {
+            **ctx, "error": t("auth.wrong_current_password"), "success": None,
+        })
+    if new_password != new_password_confirm:
+        return templates.TemplateResponse(request, "change_password.html", {
+            **ctx, "error": t("auth.password_mismatch"), "success": None,
+        })
+    if len(new_password) < 8:
+        return templates.TemplateResponse(request, "change_password.html", {
+            **ctx, "error": t("auth.password_too_short"), "success": None,
+        })
+
+    # Re-fetch the user in the current session to update
+    db_user = session.get(UserModel, user.id)
+    db_user.hashed_password = hash_password(new_password)
+    session.commit()
+    return templates.TemplateResponse(request, "change_password.html", {
+        **ctx, "error": None, "success": t("auth.password_changed"),
+    })
+
+
+# ── Admin: User management ─────────────────────────────
+@router.get("/admin/users", response_class=HTMLResponse)
+def admin_users_page(request: Request, session: Session = Depends(get_session)):
+    t, lang = _t_and_lang(request)
+    user = get_current_user_or_none(session, request.cookies.get("access_token"))
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/login", status_code=303)
+    users = session.query(UserModel).order_by(UserModel.id).all()
+    error = request.query_params.get("error")
+    success = request.query_params.get("success")
+    return templates.TemplateResponse(request, "admin_users.html", {
+        **_base_ctx(request, t, lang), "users": users,
+        "error": error, "success": success,
+    })
+
+
+@router.post("/admin/users/{user_id}/toggle-active")
+def toggle_user_active(user_id: int, request: Request, session: Session = Depends(get_session)):
+    admin = get_current_user_or_none(session, request.cookies.get("access_token"))
+    if not admin or not admin.is_admin:
+        return RedirectResponse(url="/login", status_code=303)
+    target = session.get(UserModel, user_id)
+    if target and target.id != admin.id:
+        target.is_active = not target.is_active
+        session.commit()
+    return RedirectResponse(url="/admin/users", status_code=303)
+
+
+@router.post("/admin/users/{user_id}/toggle-admin")
+def toggle_user_admin(user_id: int, request: Request, session: Session = Depends(get_session)):
+    admin = get_current_user_or_none(session, request.cookies.get("access_token"))
+    if not admin or not admin.is_admin:
+        return RedirectResponse(url="/login", status_code=303)
+    target = session.get(UserModel, user_id)
+    if target and target.id != admin.id:
+        target.is_admin = not target.is_admin
+        session.commit()
+    return RedirectResponse(url="/admin/users", status_code=303)
