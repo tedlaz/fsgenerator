@@ -1,0 +1,17 @@
+{
+  "name": "sample",
+  "fields": {
+    "name": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 255,
+      "isnull": true
+    }
+  },
+  "relations": {},
+  "unique": {},
+  "representation": ["name"]
+}

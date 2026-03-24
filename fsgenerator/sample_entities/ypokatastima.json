@@ -1,0 +1,16 @@
+{
+    "name": "ypokatastima",
+    "representation": ["company", "name"],
+    "fields": {
+        "name": {"type": "string", "maxLength": 80},
+        "no": {"type": "string_numeric", "maxLength": 5},
+        "kad": {"type": "string_numeric", "length": 6}
+    },
+    "unique": {
+        "unique_company_name": ["company", "name"]
+    },
+    "relations": {
+        "company": {"type": "many_to_one", "entity": "company"}
+    }
+
+}

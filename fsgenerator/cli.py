@@ -41,9 +41,35 @@ def _templates_dir() -> Path:
     return Path(str(resources.files("fsgenerator") / "templates"))
 
 
+def _sample_entities_dir() -> Path:
+    """Resolve the bundled sample_entities directory inside the installed package."""
+    return Path(str(resources.files("fsgenerator") / "sample_entities"))
+
+
+def _init_json_entities() -> None:
+    """Copy sample entity files into ./json_entities as a starting point."""
+    dest = Path.cwd() / "json_entities"
+    if dest.exists():
+        print(f"Directory already exists: {dest}")
+        raise SystemExit(1)
+    src = _sample_entities_dir()
+    dest.mkdir()
+    for f in sorted(src.iterdir()):
+        if f.is_file():
+            (dest / f.name).write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
+            print(f"  {f.name}")
+    print(f"Created {dest} with sample files. Edit them and run fsgenerator to generate your app.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate application code from JSON entity definitions.",
+    )
+    parser.add_argument(
+        "-x",
+        "--init",
+        action="store_true",
+        help="Create a json_entities/ directory in the current folder with sample starter files, then exit",
     )
     parser.add_argument(
         "-i",
@@ -60,6 +86,10 @@ def main() -> None:
         help="Parent directory for generated output (default: current directory)",
     )
     args = parser.parse_args()
+
+    if args.init:
+        _init_json_entities()
+        return
 
     input_dir: Path = args.input_dir.resolve()
     config = AppConfig.load(input_dir / "app_config.json")
