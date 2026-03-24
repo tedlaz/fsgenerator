@@ -8,6 +8,9 @@ from pydantic import BaseModel, ConfigDict{% if has_field_constraints %}, Field{
 
 
 class {{ entity.class_name }}Create(BaseModel):
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+    {{ rel.field_name }}_id: {{ id_type }}
+{% endfor %}
 {% for field in entity.fields %}
 {% if not field.is_null %}
     {{ field.name }}: {{ field_types[field.name] }}{{ field_kwargs_create[field.name] }}
@@ -18,17 +21,14 @@ class {{ entity.class_name }}Create(BaseModel):
     {{ field.name }}: {{ field_types[field.name] }} | None{{ field_kwargs_update[field.name] }}{{ " = None" if not field_kwargs_update[field.name] else "" }}
 {% endif %}
 {% endfor %}
-{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
-    {{ rel.field_name }}_id: {{ id_type }}
-{% endfor %}
 
 
 class {{ entity.class_name }}Update(BaseModel):
-{% for field in entity.fields %}
-    {{ field.name }}: {{ field_types[field.name] }} | None{{ field_kwargs_update[field.name] }}{{ " = None" if not field_kwargs_update[field.name] else "" }}
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
     {{ rel.field_name }}_id: {{ id_type }} | None = None
+{% endfor %}
+{% for field in entity.fields %}
+    {{ field.name }}: {{ field_types[field.name] }} | None{{ field_kwargs_update[field.name] }}{{ " = None" if not field_kwargs_update[field.name] else "" }}
 {% endfor %}
 
 
@@ -36,9 +36,9 @@ class {{ entity.class_name }}Response(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: {{ id_type }}
-{% for field in entity.fields %}
-    {{ field.name }}: {{ field_types[field.name] }}{{ " | None" if field.is_null else "" }}
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
     {{ rel.field_name }}_id: {{ id_type }} | None = None
+{% endfor %}
+{% for field in entity.fields %}
+    {{ field.name }}: {{ field_types[field.name] }}{{ " | None" if field.is_null else "" }}
 {% endfor %}

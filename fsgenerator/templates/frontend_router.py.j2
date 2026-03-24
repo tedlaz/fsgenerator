@@ -44,14 +44,22 @@ def _get_relation_options(session: Session) -> dict:
 
 
 def _parse_form_data(
-{% for field in entity.fields %}
-    {{ field.name }}: str | None,
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
     {{ rel.field_name }}_id: str | None,
 {% endfor %}
+{% for field in entity.fields %}
+    {{ field.name }}: str | None,
+{% endfor %}
 ) -> dict:
     data = {}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+{% if id_type == "int" %}
+    data["{{ rel.field_name }}_id"] = int({{ rel.field_name }}_id) if {{ rel.field_name }}_id else None
+{% else %}
+    from uuid import UUID as _UUID
+    data["{{ rel.field_name }}_id"] = _UUID({{ rel.field_name }}_id) if {{ rel.field_name }}_id else None
+{% endif %}
+{% endfor %}
 {% for field in entity.fields %}
 {% if field.type in ("integer", "select") %}
     data["{{ field.name }}"] = int({{ field.name }}) if {{ field.name }} else None
@@ -73,23 +81,15 @@ def _parse_form_data(
     data["{{ field.name }}"] = {{ field.name }} or None
 {% endif %}
 {% endfor %}
-{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
-{% if id_type == "int" %}
-    data["{{ rel.field_name }}_id"] = int({{ rel.field_name }}_id) if {{ rel.field_name }}_id else None
-{% else %}
-    from uuid import UUID as _UUID
-    data["{{ rel.field_name }}_id"] = _UUID({{ rel.field_name }}_id) if {{ rel.field_name }}_id else None
-{% endif %}
-{% endfor %}
     return data
 
 
 def _build_form_item(
-{% for field in entity.fields %}
-    {{ field.name }}: str | None,
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
     {{ rel.field_name }}_id: str | None,
+{% endfor %}
+{% for field in entity.fields %}
+    {{ field.name }}: str | None,
 {% endfor %}
     existing_id=None,
 ):
@@ -98,11 +98,11 @@ def _build_form_item(
         pass
     item = _FormData()
     item.id = existing_id
-{% for field in entity.fields %}
-    item.{{ field.name }} = {{ field.name }} or ""
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
     item.{{ rel.field_name }}_id = {{ rel.field_name }}_id or ""
+{% endfor %}
+{% for field in entity.fields %}
+    item.{{ field.name }} = {{ field.name }} or ""
 {% endfor %}
     return item
 
@@ -153,22 +153,22 @@ def new_{{ entity.name }}_form(request: Request, session: Session = Depends(get_
 def create_{{ entity.name }}_submit(
     request: Request,
     session: Session = Depends(get_session),
-{% for field in entity.fields %}
-    {{ field.name }}: str{{ " | None" if field.is_null else "" }} = Form({{ "None" if field.is_null else "..." }}),
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
     {{ rel.field_name }}_id: str | None = Form(None),
+{% endfor %}
+{% for field in entity.fields %}
+    {{ field.name }}: str{{ " | None" if field.is_null else "" }} = Form({{ "None" if field.is_null else "..." }}),
 {% endfor %}
 ):
     lang = request.cookies.get("lang", "en")
     t = make_t(request.app.state.translations, lang)
     try:
         data = _parse_form_data(
-{% for field in entity.fields %}
-            {{ field.name }}={{ field.name }},
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
             {{ rel.field_name }}_id={{ rel.field_name }}_id,
+{% endfor %}
+{% for field in entity.fields %}
+            {{ field.name }}={{ field.name }},
 {% endfor %}
         )
         repo = SQLAlchemy{{ entity.class_name }}Repository(session)
@@ -181,11 +181,11 @@ def create_{{ entity.name }}_submit(
         session.rollback()
         options = _get_relation_options(session)
         item = _build_form_item(
-{% for field in entity.fields %}
-            {{ field.name }}={{ field.name }},
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
             {{ rel.field_name }}_id={{ rel.field_name }}_id,
+{% endfor %}
+{% for field in entity.fields %}
+            {{ field.name }}={{ field.name }},
 {% endfor %}
         )
         return templates.TemplateResponse(request, "{{ entity.name }}_form.html", {
@@ -218,22 +218,22 @@ def update_{{ entity.name }}_submit(
     item_id: {{ id_type }},
     request: Request,
     session: Session = Depends(get_session),
-{% for field in entity.fields %}
-    {{ field.name }}: str | None = Form(None),
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
     {{ rel.field_name }}_id: str | None = Form(None),
+{% endfor %}
+{% for field in entity.fields %}
+    {{ field.name }}: str | None = Form(None),
 {% endfor %}
 ):
     lang = request.cookies.get("lang", "en")
     t = make_t(request.app.state.translations, lang)
     try:
         all_data = _parse_form_data(
-{% for field in entity.fields %}
-            {{ field.name }}={{ field.name }},
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
             {{ rel.field_name }}_id={{ rel.field_name }}_id,
+{% endfor %}
+{% for field in entity.fields %}
+            {{ field.name }}={{ field.name }},
 {% endfor %}
         )
         updates = {k: v for k, v in all_data.items() if v is not None}
@@ -246,11 +246,11 @@ def update_{{ entity.name }}_submit(
         session.rollback()
         options = _get_relation_options(session)
         item = _build_form_item(
-{% for field in entity.fields %}
-            {{ field.name }}={{ field.name }},
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
             {{ rel.field_name }}_id={{ rel.field_name }}_id,
+{% endfor %}
+{% for field in entity.fields %}
+            {{ field.name }}={{ field.name }},
 {% endfor %}
             existing_id=item_id,
         )

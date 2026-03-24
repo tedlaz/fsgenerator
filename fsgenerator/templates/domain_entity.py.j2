@@ -12,12 +12,12 @@ class {{ entity.class_name }}:
     {{ f.name }}: {{ field_types[f.name] }}
 {% endfor %}
     id: {{ id_type }} | None = None
-{% for f in entity.fields if f.is_null %}
-    {{ f.name }}: {{ field_types[f.name] }} | None = None
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
     {{ rel.field_name }}_id: {{ id_type }} | None = None
     {{ rel.field_name }}: {{ rel.target_entity | capitalize }} | None = None
+{% endfor %}
+{% for f in entity.fields if f.is_null %}
+    {{ f.name }}: {{ field_types[f.name] }} | None = None
 {% endfor %}
 {% if entity.representation %}
 

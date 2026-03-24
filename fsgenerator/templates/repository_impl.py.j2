@@ -17,12 +17,12 @@ from domain.entities.{{ rel.target_entity }} import {{ rel.target_entity | capit
 def _convert_{{ entity.name }}(model: {{ entity.class_name }}Model) -> {{ entity.class_name }}:
     return {{ entity.class_name }}(
         id=model.id,
-{% for field in entity.fields %}
-        {{ field.name }}=model.{{ field.name }},
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
         {{ rel.field_name }}_id=model.{{ rel.field_name }}_id,
         {{ rel.field_name }}=_convert_{{ rel.target_entity }}(model.{{ rel.field_name }}) if model.{{ rel.field_name }} else None,
+{% endfor %}
+{% for field in entity.fields %}
+        {{ field.name }}=model.{{ field.name }},
 {% endfor %}
     )
 
@@ -44,11 +44,11 @@ class SQLAlchemy{{ entity.class_name }}Repository:
     def _to_model(self, entity: {{ entity.class_name }}) -> {{ entity.class_name }}Model:
         return {{ entity.class_name }}Model(
             id=entity.id,
-{% for field in entity.fields %}
-            {{ field.name }}=entity.{{ field.name }},
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
             {{ rel.field_name }}_id=entity.{{ rel.field_name }}_id,
+{% endfor %}
+{% for field in entity.fields %}
+            {{ field.name }}=entity.{{ field.name }},
 {% endfor %}
         )
 

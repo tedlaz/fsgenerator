@@ -7,7 +7,7 @@ from fsgenerator.type_mapping import (
     id_python_import,
     id_python_type,
     python_imports,
-    python_type_annotation,
+    python_type,
 )
 
 
@@ -24,7 +24,7 @@ def generate(entity: EntityDef, env: Environment, config: AppConfig) -> list[tup
             imports.add(imp)
 
     field_types = {
-        f.name: python_type_annotation(f, config)
+        f.name: python_type(f, config)
         for f in entity.fields
     }
 

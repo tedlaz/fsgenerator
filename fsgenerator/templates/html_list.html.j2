@@ -9,11 +9,11 @@
     <thead>
         <tr>
             <th>{% raw %}{{ t("common.id") }}{% endraw %}</th>
-{% for field in entity.fields %}
-            <th>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</th>
-{% endfor %}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
             <th>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</th>
+{% endfor %}
+{% for field in entity.fields %}
+            <th>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</th>
 {% endfor %}
             <th>{% raw %}{{ t("common.actions") }}{% endraw %}</th>
         </tr>
@@ -23,15 +23,15 @@
 
         <tr>
             <td>{% raw %}{{ item.id }}{% endraw %}</td>
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+            <td>{% raw %}{{ item.{% endraw %}{{ rel.field_name }}{% raw %} }}{% endraw %}</td>
+{% endfor %}
 {% for field in entity.fields %}
 {% if field.type == "select" and field.options %}
             <td>{% raw %}{{ {% endraw %}{{ '{' }}{% for opt_value, opt_label in field.options %}{{ opt_value }}: "{{ opt_label }}"{{ ", " if not loop.last else "" }}{% endfor %}{{ '}' }}{% raw %}.get(item.{% endraw %}{{ field.name }}{% raw %}, item.{% endraw %}{{ field.name }}{% raw %}) }}{% endraw %}</td>
 {% else %}
             <td>{% raw %}{{ item.{% endraw %}{{ field.name }}{% raw %} }}{% endraw %}</td>
 {% endif %}
-{% endfor %}
-{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
-            <td>{% raw %}{{ item.{% endraw %}{{ rel.field_name }}{% raw %} }}{% endraw %}</td>
 {% endfor %}
             <td>
                 <a href="/{{ entity.name }}/{% raw %}{{ item.id }}{% endraw %}/edit" class="btn btn-sm btn-warning">{% raw %}{{ t("common.edit") }}{% endraw %}</a>
