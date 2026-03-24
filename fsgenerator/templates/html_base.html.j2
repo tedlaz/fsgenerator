@@ -10,6 +10,7 @@
 </head>
 <body>
     <div class="app-layout">
+        <button class="sidebar-toggle" aria-label="Toggle menu" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
         <nav class="sidebar">
             <a href="/" class="sidebar-brand">
                 <span class="brand-icon">{{ app_name[0] | upper }}</span>
@@ -52,10 +53,11 @@
                 </div>
             </div>
         </nav>
+        <div class="sidebar-overlay" onclick="document.querySelector('.sidebar').classList.remove('open')"></div>
         <main class="main-content">
             {% raw %}{% block content %}{% endblock %}{% endraw %}
         </main>
     </div>
-    <script>document.addEventListener('click',function(e){document.querySelectorAll('.dropdown.open').forEach(function(d){if(!d.contains(e.target))d.classList.remove('open')})});</script>
+    <script>document.addEventListener('click',function(e){document.querySelectorAll('.dropdown.open').forEach(function(d){if(!d.contains(e.target))d.classList.remove('open')});if(e.target.closest('.sidebar .nav-link'))document.querySelector('.sidebar').classList.remove('open')});</script>
 </body>
 </html>
