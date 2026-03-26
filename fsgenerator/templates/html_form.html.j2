@@ -84,4 +84,101 @@
     </div>
 </form>
 </div>
+{% if subform_entity %}
+{% raw %}{% if item and item.id %}{% endraw %}
+<hr>
+<div class="toolbar">
+    <h2 style="margin-bottom:0">{% raw %}{{ t("{% endraw %}{{ subform_entity.name }}{% raw %}._label") }}{% endraw %}</h2>
+</div>
+{% raw %}{% if subform_error %}{% endraw %}
+<div class="alert alert-danger">
+    {% raw %}{{ subform_error }}{% endraw %}
+    <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+</div>
+{% raw %}{% endif %}{% endraw %}
+<div class="table-wrapper">
+<table class="table">
+    <thead>
+        <tr>
+{% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
+            <th>{% raw %}{{ t("{% endraw %}{{ subform_entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</th>
+{% endfor %}
+{% for field in subform_entity.fields %}
+            <th>{% raw %}{{ t("{% endraw %}{{ subform_entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</th>
+{% endfor %}
+            <th>{% raw %}{{ t("common.actions") }}{% endraw %}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% raw %}{% for detail in subform_items %}{% endraw %}
+
+        <tr>
+{% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
+            <td>{% raw %}{{ detail.{% endraw %}{{ rel.field_name }}{% raw %} }}{% endraw %}</td>
+{% endfor %}
+{% for field in subform_entity.fields %}
+            <td>{% raw %}{{ detail.{% endraw %}{{ field.name }}{% raw %} }}{% endraw %}</td>
+{% endfor %}
+            <td>
+                <form class="delete-form" method="post" action="/{{ entity.name }}/{% raw %}{{ item.id }}{% endraw %}/{{ subform_entity.name }}/{% raw %}{{ detail.id }}{% endraw %}/delete" style="display:inline">
+                    <button type="submit" class="btn btn-sm btn-danger">{% raw %}{{ t("common.delete") }}{% endraw %}</button>
+                </form>
+            </td>
+        </tr>
+        {% raw %}{% endfor %}{% endraw %}
+
+    </tbody>
+</table>
+</div>
+<div class="form-card">
+<form method="post" action="/{{ entity.name }}/{% raw %}{{ item.id }}{% endraw %}/{{ subform_entity.name }}/add">
+    <div class="subform-add-row" style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:end">
+{% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
+        <div class="form-group">
+            <label class="form-label">{% raw %}{{ t("{% endraw %}{{ subform_entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</label>
+            <select class="form-select" name="{{ rel.field_name }}_id">
+                <option value="">{% raw %}{{ t("common.select") }}{% endraw %}</option>
+                {% raw %}{% for opt in subform_{{ rel.field_name }}_options %}{% endraw %}
+
+                <option value="{% raw %}{{ opt.id }}{% endraw %}">{% raw %}{{ opt }}{% endraw %}</option>
+                {% raw %}{% endfor %}{% endraw %}
+
+            </select>
+        </div>
+{% endfor %}
+{% for field in subform_entity.fields %}
+        <div class="form-group">
+            <label class="form-label">{% raw %}{{ t("{% endraw %}{{ subform_entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</label>
+{% if field.type in ("iso_date",) %}
+            <input type="date" class="form-control" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("iso_datetime",) %}
+            <input type="datetime-local" class="form-control" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("time",) %}
+            <input type="time" class="form-control" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("value", "percent", "float") %}
+            <input type="number" class="form-control" name="{{ field.name }}" step="0.01"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("integer",) %}
+            <input type="number" class="form-control" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type == "string_numeric" %}
+            <input type="text" class="form-control" name="{{ field.name }}" pattern="\d+"{{ ' required' if not field.is_null else '' }}{{ ' maxlength="%d"' % (field.length or field.max_length) if (field.length or field.max_length) else '' }}>
+{% elif field.type == "select" and field.options %}
+            <select class="form-select" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+                <option value="">{% raw %}{{ t("common.select") }}{% endraw %}</option>
+{% for opt_value, opt_label in field.options %}
+                <option value="{{ opt_value }}">{{ opt_label }}</option>
+{% endfor %}
+            </select>
+{% else %}
+            <input type="text" class="form-control" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}{{ ' maxlength="%d"' % (field.length or field.max_length) if (field.length or field.max_length) else '' }}>
+{% endif %}
+        </div>
+{% endfor %}
+        <div class="form-group" style="align-self:end">
+            <button type="submit" class="btn btn-primary">{% raw %}{{ t("common.add_new") }}{% endraw %}</button>
+        </div>
+    </div>
+</form>
+</div>
+{% raw %}{% endif %}{% endraw %}
+{% endif %}
 {% raw %}{% endblock %}{% endraw %}

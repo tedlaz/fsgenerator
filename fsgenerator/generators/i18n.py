@@ -30,6 +30,7 @@ def generate(entities: list[EntityDef], config: AppConfig) -> list[tuple[str, st
             "error_check": "Validation failed",
             "error_integrity": "Data integrity error",
             "error_generic": "An error occurred",
+            "no_records": "No records",
             "all": "All",
         },
         "auth": {

@@ -1,19 +1,21 @@
 {
-    "name": "employee",
-    "representation": ["eponymo", "name"],
-    "fields": {
-        "name": {"type": "string", "maxLength": 30},
-        "eponymo": {"type": "string", "maxLength": 30},
-        "patronymo": {"type": "string", "maxLength": 30},
-        "mitronymo": {"type": "string", "maxLength": 30},
-        "birthday": {"type": "iso-date", "isnull": false},
-        "afm": {"type": "string_numeric", "length": 9},
-        "amka": {"type": "string_numeric", "length": 11}
-    },
-    "unique": {
-        "name_eponymo": ["name", "eponymo"]
-    },
-    "relations": {
-        "ypokatastima": {"type": "many_to_one", "entity": "ypokatastima"}
-    }
+  "name": "employee",
+  "representation": ["eponymo", "name"],
+  "fields": {
+    "name": { "type": "string", "maxLength": 30 },
+    "eponymo": { "type": "string", "maxLength": 30 },
+    "patronymo": { "type": "string", "maxLength": 30 },
+    "mitronymo": { "type": "string", "maxLength": 30 },
+    "birthday": { "type": "iso-date", "isnull": false },
+    "afm": { "type": "string_numeric", "length": 9 },
+    "amka": { "type": "string_numeric", "length": 11 }
+  },
+  "unique": {
+    "unique_name_eponymo": ["name", "eponymo"],
+    "unique_afm": ["afm"],
+    "unique_amka": ["amka"]
+  },
+  "relations": {
+    "ypokatastima": { "type": "many_to_one", "entity": "ypokatastima" }
+  }
 }

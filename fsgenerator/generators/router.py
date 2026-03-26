@@ -27,6 +27,7 @@ def generate(
         imports=sorted(imports),
         id_type=id_python_type(config),
         has_tenant_filter=has_tenant_filter,
+        is_tenant_entity=config.tenant is not None and entity.name == config.tenant,
     )
 
     return [(f"infrastructure/web/fastapi/routers/{entity.name}.py", content)]

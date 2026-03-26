@@ -103,6 +103,8 @@ def main() -> None:
     if config.tenant:
         config.tenant_chains = compute_tenant_chains(sorted_entities, config.tenant)
 
+    config.entities_by_name = {e.name: e for e in sorted_entities}
+
     env = Environment(
         loader=FileSystemLoader(str(_templates_dir())),
         keep_trailing_newline=True,

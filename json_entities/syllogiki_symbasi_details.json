@@ -1,0 +1,15 @@
+{
+  "name": "syllogiki_symbasi_details",
+  "representation": ["start_date"],
+  "fields": {
+    "start_date": { "type": "iso-date" },
+    "misthos": { "type": "value" },
+    "imeromisthio": { "type": "value" }
+  },
+  "unique": {
+    "unique_start_date": ["syllogiki_symbasi", "start_date"]
+  },
+  "relations": {
+    "syllogiki_symbasi": { "type": "many_to_one", "entity": "syllogiki_symbasi" }
+  }
+}

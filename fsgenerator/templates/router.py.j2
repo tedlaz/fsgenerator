@@ -41,6 +41,20 @@ def _require_auth(
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     return user
+{% if is_tenant_entity %}
+
+
+def _require_admin(
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    session: Session = Depends(get_session),
+):
+    user = get_current_user_or_none(session, credentials.credentials)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+{% endif %}
 
 
 @router.get("/", response_model=list[{{ entity.class_name }}Response])
@@ -69,7 +83,7 @@ def get_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, session: Session 
 
 
 @router.post("/", response_model={{ entity.class_name }}Response, status_code=201)
-def create_{{ entity.name }}(data: {{ entity.class_name }}Create, session: Session = Depends(get_session), _user=Depends(_require_auth)):
+def create_{{ entity.name }}(data: {{ entity.class_name }}Create, session: Session = Depends(get_session), _user=Depends({% if is_tenant_entity %}_require_admin{% else %}_require_auth{% endif %})):
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
     use_case = Create{{ entity.class_name }}(repo)
     entity = {{ entity.class_name }}(**data.model_dump())
@@ -79,7 +93,7 @@ def create_{{ entity.name }}(data: {{ entity.class_name }}Create, session: Sessi
 
 
 @router.put("/{{ '{' }}{{ entity.name }}_id{{ '}' }}", response_model={{ entity.class_name }}Response)
-def update_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, data: {{ entity.class_name }}Update, session: Session = Depends(get_session), _user=Depends(_require_auth)):
+def update_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, data: {{ entity.class_name }}Update, session: Session = Depends(get_session), _user=Depends({% if is_tenant_entity %}_require_admin{% else %}_require_auth{% endif %})):
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
     use_case = Update{{ entity.class_name }}(repo)
     result = use_case({{ entity.name }}_id, data.model_dump(exclude_unset=True))
@@ -90,7 +104,7 @@ def update_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, data: {{ entit
 
 
 @router.delete("/{{ '{' }}{{ entity.name }}_id{{ '}' }}", status_code=204)
-def delete_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, session: Session = Depends(get_session), _user=Depends(_require_auth)):
+def delete_{{ entity.name }}({{ entity.name }}_id: {{ id_type }}, session: Session = Depends(get_session), _user=Depends({% if is_tenant_entity %}_require_admin{% else %}_require_auth{% endif %})):
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
     use_case = Delete{{ entity.class_name }}(repo)
     if not use_case({{ entity.name }}_id):

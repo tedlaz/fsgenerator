@@ -398,6 +398,51 @@ h1 {
   box-sizing: border-box;
 }
 
+/* ── Accordion rows (subform details in list view) ──── */
+.accordion-parent {
+  cursor: pointer;
+}
+
+.accordion-chevron {
+  width: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  user-select: none;
+  transition: color var(--transition);
+}
+
+.accordion-parent:hover .accordion-chevron {
+  color: var(--primary);
+}
+
+.accordion-open {
+  background: var(--primary-light);
+}
+
+.accordion-detail > td {
+  padding: 0 1rem 0.75rem 2.5rem;
+  background: var(--surface-alt);
+  border-bottom: 2px solid var(--border);
+}
+
+.subform-table {
+  margin: 0.5rem 0;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.subform-table thead th {
+  font-size: 0.7rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.subform-table tbody td {
+  padding: 0.45rem 0.75rem;
+}
+
 .table .actions form {
   margin: 0;
   display: flex;

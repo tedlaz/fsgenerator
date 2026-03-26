@@ -85,6 +85,9 @@ def generate(
         )
     )
 
+    # Collect subform entity names (to hide from sidebar)
+    subform_entities = {e.subform for e in entities if e.subform}
+
     # Base HTML template
     base_html_template = env.get_template("html_base.html.j2")
     files.append(
@@ -94,6 +97,7 @@ def generate(
                 entities=entities,
                 app_name=config.app_name,
                 tenant_name=config.tenant,
+                subform_entities=subform_entities,
             ),
         )
     )

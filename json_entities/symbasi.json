@@ -1,19 +1,39 @@
 {
-    "name": "symbasi",
-    "representation": ["employee", "start_date"],
-    "fields": {
-        "start_date": {"type": "iso-date"},
-        "name": {"type": "string", "maxLength": 30},
-        "diarkeia": {"type": "select", "options": [[1, "Αορίστου Χρόνου"], [2, "Ορισμένου Χρόνου"], [3, "έργου"]]},
-        "apasxolisi": {"type": "select", "options": [[1, "Πλήρης"], [2, "Μερική"]]},
-        "ergazomenos_typos": {"type": "select", "options": [[1, "Μισθωτός"], [2, "Ημερομίσθιος"]]},
-        "apodoxes": {"type": "value"},
-        "ores_ergasias": {"type": "integer"}
+  "name": "symbasi",
+  "representation": ["employee", "start_date"],
+  "fields": {
+    "start_date": { "type": "iso-date" },
+    "name": { "type": "string", "maxLength": 30 },
+    "diarkeia": {
+      "type": "select",
+      "options": [
+        [1, "Αορίστου Χρόνου"],
+        [2, "Ορισμένου Χρόνου"],
+        [3, "έργου"]
+      ]
     },
-    "unique": {
-        "name_eponymo": ["employee", "start_date"]
+    "apasxolisi": {
+      "type": "select",
+      "options": [
+        [1, "Πλήρης"],
+        [2, "Μερική"]
+      ]
     },
-    "relations": {
-        "employee": {"type": "many_to_one", "entity": "employee"}
-    }
+    "ergazomenos_typos": {
+      "type": "select",
+      "options": [
+        [1, "Μισθωτός"],
+        [2, "Ημερομίσθιος"]
+      ]
+    },
+    "apodoxes": { "type": "value" },
+    "ores_ergasias": { "type": "integer" }
+  },
+  "unique": {
+    "name_eponymo": ["employee", "start_date"]
+  },
+  "relations": {
+    "employee": { "type": "many_to_one", "entity": "employee" },
+    "syllogiki_symbasi": { "type": "many_to_one", "entity": "syllogiki_symbasi" }
+  }
 }

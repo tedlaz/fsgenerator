@@ -30,18 +30,26 @@
 {% endif %}
             <hr>
             <ul class="nav">
-{% for entity in entities %}
+{% for entity in entities if not (tenant_name and entity.name == tenant_name) and entity.name not in subform_entities %}
                 <li class="nav-item">
                     <a class="nav-link" href="/{{ entity.name }}">{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }}{% endraw %}</a>
                 </li>
 {% endfor %}
-                {% raw %}{% if current_user and current_user.is_admin %}{% endraw %}
-                <li class="nav-item">
-                    <a class="nav-link" href="/admin/users">{% raw %}{{ t("auth.user_management") }}{% endraw %}</a>
-                </li>
-                {% raw %}{% endif %}{% endraw %}
             </ul>
             <div class="sidebar-footer">
+                {% raw %}{% if current_user and current_user.is_admin %}{% endraw %}
+                <hr>
+                <ul class="nav">
+{% if tenant_name %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/{{ tenant_name }}">{% raw %}{{ t("{% endraw %}{{ tenant_name }}{% raw %}._label") }}{% endraw %}</a>
+                    </li>
+{% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/users">{% raw %}{{ t("auth.user_management") }}{% endraw %}</a>
+                    </li>
+                </ul>
+                {% raw %}{% endif %}{% endraw %}
                 <hr>
                 {% raw %}{% if current_user %}{% endraw %}
                 <div class="sidebar-user">

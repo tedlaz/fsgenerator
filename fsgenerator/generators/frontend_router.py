@@ -35,6 +35,19 @@ def generate(
                 if target_chain is not None and rel.target_entity != config.tenant:
                     tenant_filtered_relations.add(rel.field_name)
 
+    # Resolve subform entity if present
+    subform_entity = None
+    subform_parent_fk = None
+    if entity.subform and entity.subform in config.entities_by_name:
+        subform_entity = config.entities_by_name[entity.subform]
+        for rel in subform_entity.relations:
+            if (
+                rel.type in ("many_to_one", "one_to_one")
+                and rel.target_entity == entity.name
+            ):
+                subform_parent_fk = rel.field_name
+                break
+
     content = template.render(
         entity=entity,
         imports=sorted(imports),
@@ -43,6 +56,9 @@ def generate(
         tenant_name=config.tenant,
         tenant_filtered_relations=tenant_filtered_relations,
         tenant_fk_field=tenant_fk_field,
+        is_tenant_entity=config.tenant is not None and entity.name == config.tenant,
+        subform_entity=subform_entity,
+        subform_parent_fk=subform_parent_fk,
     )
 
     return [(f"infrastructure/web/fastapi/routers/{entity.name}_frontend.py", content)]

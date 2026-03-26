@@ -1,15 +1,15 @@
 {
-    "name": "parousia",
-    "representation": ["employee", "date", "time_in"],
-    "fields": {
-        "date": {"type": "iso-date"},
-        "time_in": {"type": "time"},
-        "time_out": {"type": "time", "isnull": true}
-    },
-    "unique": {
-        "name_eponymo": ["employee", "date", "time_in"]
-    },
-    "relations": {
-        "employee": {"type": "many_to_one", "entity": "employee"}
-    }
+  "name": "parousia",
+  "representation": ["employee", "date", "time_in"],
+  "fields": {
+    "date": { "type": "iso-date" },
+    "time_in": { "type": "time" },
+    "time_out": { "type": "time", "isnull": true }
+  },
+  "unique": {
+    "name_eponymo": ["employee", "date", "time_in"]
+  },
+  "relations": {
+    "employee": { "type": "many_to_one", "entity": "employee" }
+  }
 }

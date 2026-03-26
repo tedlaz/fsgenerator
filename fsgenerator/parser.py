@@ -11,6 +11,7 @@ class AppConfig:
     id_type: str = "integer"  # "integer" or "uuid"
     tenant: str | None = None  # entity name to use as multi-tenant filter
     tenant_chains: dict[str, list[str] | None] = field(default_factory=dict)
+    entities_by_name: dict = field(default_factory=dict)
 
     @classmethod
     def load(cls, path: Path) -> AppConfig:
@@ -54,6 +55,7 @@ class EntityDef:
     relations: list[RelationDef] = field(default_factory=list)
     uniques: list[UniqueDef] = field(default_factory=list)
     representation: list[str] = field(default_factory=list)
+    subform: str | None = None
 
     @property
     def class_name(self) -> str:
@@ -106,6 +108,7 @@ def _parse_entity(data: dict) -> EntityDef:
         uniques.append(UniqueDef(name=uq_name, columns=resolved_cols))
 
     representation = data.get("representation", [])
+    subform = data.get("subform")
 
     return EntityDef(
         name=name,
@@ -113,6 +116,7 @@ def _parse_entity(data: dict) -> EntityDef:
         relations=relations,
         uniques=uniques,
         representation=representation,
+        subform=subform,
     )
 
 

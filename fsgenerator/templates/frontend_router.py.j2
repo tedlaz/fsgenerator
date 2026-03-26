@@ -34,10 +34,36 @@ from infrastructure.persistence.sqlalchemy.repositories.{{ rel.target_entity }} 
     SQLAlchemy{{ rel.target_entity | capitalize }}Repository,
 )
 {% endfor %}
+{% if subform_entity %}
+from application.use_cases.{{ subform_entity.name }} import (
+    Create{{ subform_entity.class_name }},
+    Delete{{ subform_entity.class_name }},
+)
+from domain.entities.{{ subform_entity.name }} import {{ subform_entity.class_name }}
+from infrastructure.persistence.sqlalchemy.models.{{ subform_entity.name }} import {{ subform_entity.class_name }}Model as _SubModel
+from infrastructure.persistence.sqlalchemy.repositories.{{ subform_entity.name }} import (
+    SQLAlchemy{{ subform_entity.class_name }}Repository,
+)
+{% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
+from application.use_cases.{{ rel.target_entity }} import List{{ rel.target_entity | capitalize }}s as _SubList{{ rel.target_entity | capitalize }}s
+from infrastructure.persistence.sqlalchemy.repositories.{{ rel.target_entity }} import (
+    SQLAlchemy{{ rel.target_entity | capitalize }}Repository as _Sub{{ rel.target_entity | capitalize }}Repo,
+)
+{% endfor %}
+{% endif %}
 from infrastructure.web.fastapi.dependencies import get_session
 
 router = APIRouter(prefix="/{{ entity.name }}", tags=["{{ entity.name }}-frontend"])
 templates = Jinja2Templates(directory="templates")
+{% if is_tenant_entity %}
+
+
+def _require_admin(request: Request):
+    user = getattr(request.state, "current_user", None)
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/", status_code=303)
+    return None
+{% endif %}
 
 
 def _ctx(request: Request) -> dict:
@@ -149,6 +175,11 @@ def _format_error(exc: Exception, t) -> str:
 
 @router.get("/", response_class=HTMLResponse)
 def list_{{ entity.name }}s(request: Request, session: Session = Depends(get_session)):
+{% if is_tenant_entity %}
+    _redirect = _require_admin(request)
+    if _redirect:
+        return _redirect
+{% endif %}
     ctx = _ctx(request)
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
 {% if has_tenant_filter %}
@@ -161,13 +192,28 @@ def list_{{ entity.name }}s(request: Request, session: Session = Depends(get_ses
     items = List{{ entity.class_name }}s(repo)()
 {% endif %}
     error = request.query_params.get("error")
+{% if subform_entity %}
+    from collections import defaultdict
+    _sub_rows = session.query(_SubModel).all()
+    subform_items: dict = defaultdict(list)
+    for _sr in _sub_rows:
+        subform_items[_sr.{{ subform_parent_fk }}_id].append(_sr)
+{% endif %}
     return templates.TemplateResponse(request, "{{ entity.name }}_list.html", {
         **ctx, "items": items, "error": error,
+{% if subform_entity %}
+        "subform_items": subform_items,
+{% endif %}
     })
 
 
 @router.get("/new", response_class=HTMLResponse)
 def new_{{ entity.name }}_form(request: Request, session: Session = Depends(get_session)):
+{% if is_tenant_entity %}
+    _redirect = _require_admin(request)
+    if _redirect:
+        return _redirect
+{% endif %}
     ctx = _ctx(request)
 {% if tenant_name %}
     options = _get_relation_options(session, tenant_id=getattr(request.state, "current_tenant_id", None))
@@ -190,6 +236,11 @@ def create_{{ entity.name }}_submit(
     {{ field.name }}: str{{ " | None" if field.is_null else "" }} = Form({{ "None" if field.is_null else "..." }}),
 {% endfor %}
 ):
+{% if is_tenant_entity %}
+    _redirect = _require_admin(request)
+    if _redirect:
+        return _redirect
+{% endif %}
     ctx = _ctx(request)
     try:
         data = _parse_form_data(
@@ -233,6 +284,11 @@ def create_{{ entity.name }}_submit(
 
 @router.get("/{{ '{' }}item_id{{ '}' }}/edit", response_class=HTMLResponse)
 def edit_{{ entity.name }}_form(item_id: {{ id_type }}, request: Request, session: Session = Depends(get_session)):
+{% if is_tenant_entity %}
+    _redirect = _require_admin(request)
+    if _redirect:
+        return _redirect
+{% endif %}
     ctx = _ctx(request)
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
     item = Get{{ entity.class_name }}(repo)(item_id)
@@ -243,8 +299,19 @@ def edit_{{ entity.name }}_form(item_id: {{ id_type }}, request: Request, sessio
 {% else %}
     options = _get_relation_options(session)
 {% endif %}
+{% if subform_entity %}
+    subform_items = session.query(_SubModel).filter_by({{ subform_parent_fk }}_id=item_id).all()
+    subform_ctx = {"subform_items": subform_items}
+{% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
+    _sub_{{ rel.field_name }}_repo = _Sub{{ rel.target_entity | capitalize }}Repo(session)
+    subform_ctx["subform_{{ rel.field_name }}_options"] = _SubList{{ rel.target_entity | capitalize }}s(_sub_{{ rel.field_name }}_repo)()
+{% endfor %}
+{% endif %}
     return templates.TemplateResponse(request, "{{ entity.name }}_form.html", {
         **ctx, "item": item, "error": None, **options,
+{% if subform_entity %}
+        **subform_ctx, "subform_error": request.query_params.get("subform_error"),
+{% endif %}
     })
 
 
@@ -260,6 +327,11 @@ def update_{{ entity.name }}_submit(
     {{ field.name }}: str | None = Form(None),
 {% endfor %}
 ):
+{% if is_tenant_entity %}
+    _redirect = _require_admin(request)
+    if _redirect:
+        return _redirect
+{% endif %}
     ctx = _ctx(request)
     try:
         all_data = _parse_form_data(
@@ -304,6 +376,11 @@ def update_{{ entity.name }}_submit(
 
 @router.post("/{{ '{' }}item_id{{ '}' }}/delete")
 def delete_{{ entity.name }}_submit(item_id: {{ id_type }}, request: Request, session: Session = Depends(get_session)):
+{% if is_tenant_entity %}
+    _redirect = _require_admin(request)
+    if _redirect:
+        return _redirect
+{% endif %}
     ctx = _ctx(request)
     try:
         repo = SQLAlchemy{{ entity.class_name }}Repository(session)
@@ -315,3 +392,79 @@ def delete_{{ entity.name }}_submit(item_id: {{ id_type }}, request: Request, se
         from urllib.parse import quote
         error_msg = quote(_format_error(exc, ctx["t"]))
         return RedirectResponse(url=f"/{{ entity.name }}?error={error_msg}", status_code=303)
+{% if subform_entity %}
+
+
+@router.post("/{{ '{' }}item_id{{ '}' }}/{{ subform_entity.name }}/add")
+def add_{{ subform_entity.name }}_submit(
+    item_id: {{ id_type }},
+    request: Request,
+    session: Session = Depends(get_session),
+{% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
+    {{ rel.field_name }}_id: str | None = Form(None),
+{% endfor %}
+{% for field in subform_entity.fields %}
+    {{ field.name }}: str | None = Form(None),
+{% endfor %}
+):
+    try:
+        data = {"{{ subform_parent_fk }}_id": item_id}
+{% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
+{% if id_type == "int" %}
+        data["{{ rel.field_name }}_id"] = int({{ rel.field_name }}_id) if {{ rel.field_name }}_id else None
+{% else %}
+        from uuid import UUID as _UUID
+        data["{{ rel.field_name }}_id"] = _UUID({{ rel.field_name }}_id) if {{ rel.field_name }}_id else None
+{% endif %}
+{% endfor %}
+{% for field in subform_entity.fields %}
+{% if field.type in ("integer", "select") %}
+        data["{{ field.name }}"] = int({{ field.name }}) if {{ field.name }} else None
+{% elif field.type in ("float",) %}
+        data["{{ field.name }}"] = float({{ field.name }}) if {{ field.name }} else None
+{% elif field.type in ("value", "percent") %}
+        from decimal import Decimal as _Decimal
+        data["{{ field.name }}"] = _Decimal({{ field.name }}) if {{ field.name }} else None
+{% elif field.type == "iso_date" %}
+        from datetime import date as _date
+        data["{{ field.name }}"] = _date.fromisoformat({{ field.name }}) if {{ field.name }} else None
+{% elif field.type == "iso_datetime" %}
+        from datetime import datetime as _datetime
+        data["{{ field.name }}"] = _datetime.fromisoformat({{ field.name }}) if {{ field.name }} else None
+{% elif field.type == "time" %}
+        from datetime import time as _time
+        data["{{ field.name }}"] = _time.fromisoformat({{ field.name }}) if {{ field.name }} else None
+{% else %}
+        data["{{ field.name }}"] = {{ field.name }} or None
+{% endif %}
+{% endfor %}
+        repo = SQLAlchemy{{ subform_entity.class_name }}Repository(session)
+        sub_entity = {{ subform_entity.class_name }}(**data)
+        Create{{ subform_entity.class_name }}(repo)(sub_entity)
+        session.commit()
+    except Exception as exc:
+        session.rollback()
+        from urllib.parse import quote
+        error_msg = quote(_format_error(exc, _ctx(request)["t"]))
+        return RedirectResponse(url=f"/{{ entity.name }}/{item_id}/edit?subform_error={error_msg}", status_code=303)
+    return RedirectResponse(url=f"/{{ entity.name }}/{item_id}/edit", status_code=303)
+
+
+@router.post("/{{ '{' }}item_id{{ '}' }}/{{ subform_entity.name }}/{{ '{' }}detail_id{{ '}' }}/delete")
+def delete_{{ subform_entity.name }}_submit(
+    item_id: {{ id_type }},
+    detail_id: {{ id_type }},
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    try:
+        repo = SQLAlchemy{{ subform_entity.class_name }}Repository(session)
+        Delete{{ subform_entity.class_name }}(repo)(detail_id)
+        session.commit()
+    except Exception as exc:
+        session.rollback()
+        from urllib.parse import quote
+        error_msg = quote(_format_error(exc, _ctx(request)["t"]))
+        return RedirectResponse(url=f"/{{ entity.name }}/{item_id}/edit?subform_error={error_msg}", status_code=303)
+    return RedirectResponse(url=f"/{{ entity.name }}/{item_id}/edit", status_code=303)
+{% endif %}

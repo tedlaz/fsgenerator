@@ -1,0 +1,11 @@
+{
+  "name": "syllogiki_symbasi",
+  "representation": ["name"],
+  "fields": {
+    "name": { "type": "string", "maxLength": 80 }
+  },
+  "unique": {
+    "unique_name": ["name"]
+  },
+  "subform": "syllogiki_symbasi_details"
+}

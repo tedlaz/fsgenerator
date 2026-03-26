@@ -1,6 +1,6 @@
 {%- raw %}{% extends "base.html" %}
 
-{% block title %}{% endraw %}{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }} {{ t("common.list") }}{% endraw %}{% raw %}{% endblock %}
+{% block title %}{% endraw %}{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }}{% endraw %}{% raw %}{% endblock %}
 
 {% block content %}{% endraw %}
 {% raw %}{% if error %}{% endraw %}
@@ -10,13 +10,16 @@
 </div>
 {% raw %}{% endif %}{% endraw %}
 <div class="toolbar">
-    <h1 style="margin-bottom:0">{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }} {{ t("common.list") }}{% endraw %}</h1>
+    <h1 style="margin-bottom:0">{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }}{% endraw %}</h1>
     <a href="/{{ entity.name }}/new" class="btn btn-primary">{% raw %}{{ t("common.add_new") }}{% endraw %}</a>
 </div>
 <div class="table-wrapper">
 <table class="table">
     <thead>
         <tr>
+{% if subform_entity %}
+            <th style="width:2rem"></th>
+{% endif %}
             <th>{% raw %}{{ t("common.id") }}{% endraw %}</th>
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
             <th>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</th>
@@ -30,7 +33,10 @@
     <tbody>
         {% raw %}{% for item in items %}{% endraw %}
 
-        <tr>
+        <tr{% if subform_entity %} class="accordion-parent" onclick="toggleAccordion(this)"{% endif %}>
+{% if subform_entity %}
+            <td class="accordion-chevron">&#9654;</td>
+{% endif %}
             <td><span class="badge">{% raw %}{{ item.id }}{% endraw %}</span></td>
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
             <td>{% raw %}{{ item.{% endraw %}{{ rel.field_name }}{% raw %} }}{% endraw %}</td>
@@ -51,9 +57,66 @@
                 </div>
             </td>
         </tr>
+{% if subform_entity %}
+        <tr class="accordion-detail" style="display:none">
+            <td colspan="{{ 2 + entity.relations|selectattr('type','in',['many_to_one','one_to_one'])|list|length + entity.fields|length + (1 if subform_entity else 0) }}">
+                {% raw %}{% if subform_items[item.id] %}{% endraw %}
+
+                <table class="table subform-table">
+                    <thead>
+                        <tr>
+{% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
+                            <th>{% raw %}{{ t("{% endraw %}{{ subform_entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</th>
+{% endfor %}
+{% for field in subform_entity.fields %}
+                            <th>{% raw %}{{ t("{% endraw %}{{ subform_entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</th>
+{% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% raw %}{% for detail in subform_items[item.id] %}{% endraw %}
+
+                        <tr>
+{% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
+                            <td>{% raw %}{{ detail.{% endraw %}{{ rel.field_name }}{% raw %} }}{% endraw %}</td>
+{% endfor %}
+{% for field in subform_entity.fields %}
+                            <td>{% raw %}{{ detail.{% endraw %}{{ field.name }}{% raw %} }}{% endraw %}</td>
+{% endfor %}
+                        </tr>
+                        {% raw %}{% endfor %}{% endraw %}
+
+                    </tbody>
+                </table>
+                {% raw %}{% else %}{% endraw %}
+
+                <p class="text-muted" style="margin:0.5rem 0;font-style:italic">{% raw %}{{ t("common.no_records") }}{% endraw %}</p>
+                {% raw %}{% endif %}{% endraw %}
+
+            </td>
+        </tr>
+{% endif %}
         {% raw %}{% endfor %}{% endraw %}
 
     </tbody>
 </table>
 </div>
+{% if subform_entity %}
+<script>
+function toggleAccordion(parentRow) {
+    if (event.target.closest('a, button, form')) return;
+    var detail = parentRow.nextElementSibling;
+    var chevron = parentRow.querySelector('.accordion-chevron');
+    if (detail.style.display === 'none') {
+        detail.style.display = '';
+        chevron.innerHTML = '&#9660;';
+        parentRow.classList.add('accordion-open');
+    } else {
+        detail.style.display = 'none';
+        chevron.innerHTML = '&#9654;';
+        parentRow.classList.remove('accordion-open');
+    }
+}
+</script>
+{% endif %}
 {% raw %}{% endblock %}{% endraw %}
