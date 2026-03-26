@@ -13,6 +13,27 @@
 <div class="form-card">
 <form method="post">
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+{% if tenant_fk_field and rel.field_name == tenant_fk_field %}
+    <div class="form-group">
+        <label for="{{ rel.field_name }}_id" class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</label>
+        {% raw %}{% if request.state.current_tenant %}{% endraw %}
+
+        <input type="hidden" name="{{ rel.field_name }}_id" value="{% raw %}{{ request.state.current_tenant.id }}{% endraw %}">
+        <input type="text" class="form-control" disabled value="{% raw %}{{ request.state.current_tenant }}{% endraw %}">
+        {% raw %}{% else %}{% endraw %}
+
+        <select class="form-select" id="{{ rel.field_name }}_id" name="{{ rel.field_name }}_id">
+            <option value="">{% raw %}{{ t("common.select") }}{% endraw %}</option>
+            {% raw %}{% for opt in {% endraw %}{{ rel.field_name }}_options{% raw %} %}{% endraw %}
+
+            <option value="{% raw %}{{ opt.id }}{% endraw %}" {% raw %}{% if item and item.{% endraw %}{{ rel.field_name }}_id{% raw %} | string == opt.id | string %}selected{% endif %}{% endraw %}>{% raw %}{{ opt }}{% endraw %}</option>
+            {% raw %}{% endfor %}{% endraw %}
+
+        </select>
+        {% raw %}{% endif %}{% endraw %}
+
+    </div>
+{% else %}
     <div class="form-group">
         <label for="{{ rel.field_name }}_id" class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</label>
         <select class="form-select" id="{{ rel.field_name }}_id" name="{{ rel.field_name }}_id">
@@ -24,6 +45,7 @@
 
         </select>
     </div>
+{% endif %}
 {% endfor %}
 {% for field in entity.fields %}
     <div class="form-group">

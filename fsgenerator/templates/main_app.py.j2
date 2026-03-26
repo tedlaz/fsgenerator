@@ -15,6 +15,9 @@ from infrastructure.web.fastapi.routers.i18n import router as i18n_router
 from infrastructure.web.fastapi.routers.{{ entity.name }} import router as {{ entity.name }}_router
 from infrastructure.web.fastapi.routers.{{ entity.name }}_frontend import router as {{ entity.name }}_frontend_router
 {% endfor %}
+{% if tenant_name %}
+from infrastructure.persistence.sqlalchemy.models.{{ tenant_name }} import {{ tenant_class_name }}Model
+{% endif %}
 
 Base.metadata.create_all(bind=engine)
 
@@ -100,6 +103,11 @@ PUBLIC_PATHS = {"/login", "/register", "/set-lang", "/static", "/api", "/docs", 
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
+{% if tenant_name %}
+    request.state.tenants = []
+    request.state.current_tenant = None
+    request.state.current_tenant_id = None
+{% endif %}
     path = request.url.path
     if any(path == p or path.startswith(p + "/") for p in PUBLIC_PATHS):
         return await call_next(request)
@@ -107,6 +115,21 @@ async def auth_middleware(request: Request, call_next):
     session = next(get_session())
     try:
         user = get_current_user_or_none(session, token)
+{% if tenant_name %}
+        request.state.tenants = session.query({{ tenant_class_name }}Model).all()
+        tenant_id_str = request.cookies.get("tenant_id")
+        if tenant_id_str:
+            try:
+{% if id_type == "int" %}
+                request.state.current_tenant_id = int(tenant_id_str)
+{% else %}
+                from uuid import UUID as _UUID
+                request.state.current_tenant_id = _UUID(tenant_id_str)
+{% endif %}
+                request.state.current_tenant = session.get({{ tenant_class_name }}Model, request.state.current_tenant_id)
+            except (ValueError, TypeError):
+                pass
+{% endif %}
     finally:
         session.close()
     if not user:
@@ -127,8 +150,30 @@ app.include_router({{ entity.name }}_frontend_router)
 
 app.include_router(i18n_router)
 
+{% if tenant_name %}
+PUBLIC_PATHS.add("/set-tenant")
+{% endif %}
+
 templates = Jinja2Templates(directory="templates")
 
+{% if tenant_name %}
+
+@app.get("/set-tenant/{tenant_id}")
+def set_tenant(tenant_id: {{ id_type }}, request: Request):
+    referer = request.headers.get("referer", "/")
+    response = RedirectResponse(url=referer, status_code=303)
+    response.set_cookie("tenant_id", str(tenant_id), httponly=True, samesite="lax")
+    return response
+
+
+@app.get("/clear-tenant")
+def clear_tenant(request: Request):
+    referer = request.headers.get("referer", "/")
+    response = RedirectResponse(url=referer, status_code=303)
+    response.delete_cookie("tenant_id")
+    return response
+
+{% endif %}
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):

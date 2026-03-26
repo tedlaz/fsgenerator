@@ -9,6 +9,8 @@ from pathlib import Path
 class AppConfig:
     app_name: str = "generated_app"
     id_type: str = "integer"  # "integer" or "uuid"
+    tenant: str | None = None  # entity name to use as multi-tenant filter
+    tenant_chains: dict[str, list[str] | None] = field(default_factory=dict)
 
     @classmethod
     def load(cls, path: Path) -> AppConfig:
@@ -16,6 +18,7 @@ class AppConfig:
         return cls(
             app_name=data.get("app_name", "generated_app"),
             id_type=data.get("id_type", "integer"),
+            tenant=data.get("tenant"),
         )
 
 
@@ -70,38 +73,47 @@ def _parse_entity(data: dict) -> EntityDef:
 
     fields = []
     for field_name, field_data in data.get("fields", {}).items():
-        fields.append(FieldDef(
-            name=field_name,
-            type=_normalize_type(field_data["type"]),
-            max_length=field_data.get("maxLength"),
-            min_length=field_data.get("minLength"),
-            length=field_data.get("length"),
-            is_null=field_data.get("isnull", False),
-            primary_key=field_data.get("primary_key", False),
-            options=field_data.get("options"),
-        ))
+        fields.append(
+            FieldDef(
+                name=field_name,
+                type=_normalize_type(field_data["type"]),
+                max_length=field_data.get("maxLength"),
+                min_length=field_data.get("minLength"),
+                length=field_data.get("length"),
+                is_null=field_data.get("isnull", False),
+                primary_key=field_data.get("primary_key", False),
+                options=field_data.get("options"),
+            )
+        )
 
     relations = []
     for rel_name, rel_data in data.get("relations", {}).items():
-        relations.append(RelationDef(
-            field_name=rel_name,
-            type=rel_data["type"],
-            target_entity=rel_data["entity"],
-        ))
+        relations.append(
+            RelationDef(
+                field_name=rel_name,
+                type=rel_data["type"],
+                target_entity=rel_data["entity"],
+            )
+        )
 
     relation_names = {r.field_name for r in relations}
 
     uniques = []
     for uq_name, uq_cols in data.get("unique", {}).items():
         resolved_cols = [
-            f"{col}_id" if col in relation_names else col
-            for col in uq_cols
+            f"{col}_id" if col in relation_names else col for col in uq_cols
         ]
         uniques.append(UniqueDef(name=uq_name, columns=resolved_cols))
 
     representation = data.get("representation", [])
 
-    return EntityDef(name=name, fields=fields, relations=relations, uniques=uniques, representation=representation)
+    return EntityDef(
+        name=name,
+        fields=fields,
+        relations=relations,
+        uniques=uniques,
+        representation=representation,
+    )
 
 
 def load_entities(directory: str | Path) -> list[EntityDef]:

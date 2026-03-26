@@ -12,6 +12,11 @@ from infrastructure.persistence.sqlalchemy.models.{{ entity.name }} import {{ en
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
 from domain.entities.{{ rel.target_entity }} import {{ rel.target_entity | capitalize }}
 {% endfor %}
+{% if has_tenant_filter and tenant_chain %}
+{% for join_entity in tenant_chain %}
+from infrastructure.persistence.sqlalchemy.models.{{ join_entity }} import {{ join_entity | capitalize }}Model
+{% endfor %}
+{% endif %}
 
 
 def _convert_{{ entity.name }}(model: {{ entity.class_name }}Model) -> {{ entity.class_name }}:
@@ -62,6 +67,27 @@ class SQLAlchemy{{ entity.class_name }}Repository:
         models = self._session.query({{ entity.class_name }}Model).all()
         return [self._to_entity(m) for m in models]
 
+{% if has_tenant_filter %}
+    def list_by_tenant(self, tenant_id: {{ id_type }}) -> list[{{ entity.class_name }}]:
+{% if tenant_chain %}
+        models = (
+            self._session.query({{ entity.class_name }}Model)
+{% for join_entity in tenant_chain %}
+            .join({{ join_entity | capitalize }}Model)
+{% endfor %}
+            .filter({{ tenant_chain[-1] | capitalize }}Model.{{ tenant_name }}_id == tenant_id)
+            .all()
+        )
+{% else %}
+        models = (
+            self._session.query({{ entity.class_name }}Model)
+            .filter({{ entity.class_name }}Model.{{ tenant_name }}_id == tenant_id)
+            .all()
+        )
+{% endif %}
+        return [self._to_entity(m) for m in models]
+
+{% endif %}
     def create(self, entity: {{ entity.class_name }}) -> {{ entity.class_name }}:
         model = self._to_model(entity)
         model.id = None

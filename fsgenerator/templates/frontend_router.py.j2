@@ -16,6 +16,9 @@ from application.use_cases.{{ entity.name }} import (
     Delete{{ entity.class_name }},
     Get{{ entity.class_name }},
     List{{ entity.class_name }}s,
+{% if has_tenant_filter %}
+    List{{ entity.class_name }}sByTenant,
+{% endif %}
     Update{{ entity.class_name }},
 )
 from domain.entities.{{ entity.name }} import {{ entity.class_name }}
@@ -24,6 +27,9 @@ from infrastructure.persistence.sqlalchemy.repositories.{{ entity.name }} import
 )
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
 from application.use_cases.{{ rel.target_entity }} import List{{ rel.target_entity | capitalize }}s
+{% if rel.field_name in tenant_filtered_relations %}
+from application.use_cases.{{ rel.target_entity }} import List{{ rel.target_entity | capitalize }}sByTenant
+{% endif %}
 from infrastructure.persistence.sqlalchemy.repositories.{{ rel.target_entity }} import (
     SQLAlchemy{{ rel.target_entity | capitalize }}Repository,
 )
@@ -46,11 +52,18 @@ def _ctx(request: Request) -> dict:
     }
 
 
-def _get_relation_options(session: Session) -> dict:
+def _get_relation_options(session: Session{% if tenant_name %}, tenant_id=None{% endif %}) -> dict:
     options = {}
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
     {{ rel.field_name }}_repo = SQLAlchemy{{ rel.target_entity | capitalize }}Repository(session)
+{% if rel.field_name in tenant_filtered_relations %}
+    if tenant_id is not None:
+        options["{{ rel.field_name }}_options"] = List{{ rel.target_entity | capitalize }}sByTenant({{ rel.field_name }}_repo)(tenant_id)
+    else:
+        options["{{ rel.field_name }}_options"] = List{{ rel.target_entity | capitalize }}s({{ rel.field_name }}_repo)()
+{% else %}
     options["{{ rel.field_name }}_options"] = List{{ rel.target_entity | capitalize }}s({{ rel.field_name }}_repo)()
+{% endif %}
 {% endfor %}
     return options
 
@@ -138,7 +151,15 @@ def _format_error(exc: Exception, t) -> str:
 def list_{{ entity.name }}s(request: Request, session: Session = Depends(get_session)):
     ctx = _ctx(request)
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
+{% if has_tenant_filter %}
+    _tid = getattr(request.state, "current_tenant_id", None)
+    if _tid is not None:
+        items = List{{ entity.class_name }}sByTenant(repo)(_tid)
+    else:
+        items = List{{ entity.class_name }}s(repo)()
+{% else %}
     items = List{{ entity.class_name }}s(repo)()
+{% endif %}
     error = request.query_params.get("error")
     return templates.TemplateResponse(request, "{{ entity.name }}_list.html", {
         **ctx, "items": items, "error": error,
@@ -148,7 +169,11 @@ def list_{{ entity.name }}s(request: Request, session: Session = Depends(get_ses
 @router.get("/new", response_class=HTMLResponse)
 def new_{{ entity.name }}_form(request: Request, session: Session = Depends(get_session)):
     ctx = _ctx(request)
+{% if tenant_name %}
+    options = _get_relation_options(session, tenant_id=getattr(request.state, "current_tenant_id", None))
+{% else %}
     options = _get_relation_options(session)
+{% endif %}
     return templates.TemplateResponse(request, "{{ entity.name }}_form.html", {
         **ctx, "item": None, "error": None, **options,
     })
@@ -175,6 +200,11 @@ def create_{{ entity.name }}_submit(
             {{ field.name }}={{ field.name }},
 {% endfor %}
         )
+{% if tenant_fk_field %}
+        _tid = getattr(request.state, "current_tenant_id", None)
+        if _tid is not None:
+            data["{{ tenant_fk_field }}_id"] = _tid
+{% endif %}
         repo = SQLAlchemy{{ entity.class_name }}Repository(session)
         use_case = Create{{ entity.class_name }}(repo)
         entity = {{ entity.class_name }}(**data)
@@ -183,7 +213,11 @@ def create_{{ entity.name }}_submit(
         return RedirectResponse(url="/{{ entity.name }}", status_code=303)
     except Exception as exc:
         session.rollback()
+{% if tenant_name %}
+        options = _get_relation_options(session, tenant_id=getattr(request.state, "current_tenant_id", None))
+{% else %}
         options = _get_relation_options(session)
+{% endif %}
         item = _build_form_item(
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
             {{ rel.field_name }}_id={{ rel.field_name }}_id,
@@ -204,7 +238,11 @@ def edit_{{ entity.name }}_form(item_id: {{ id_type }}, request: Request, sessio
     item = Get{{ entity.class_name }}(repo)(item_id)
     if item is None:
         return RedirectResponse(url="/{{ entity.name }}", status_code=303)
+{% if tenant_name %}
+    options = _get_relation_options(session, tenant_id=getattr(request.state, "current_tenant_id", None))
+{% else %}
     options = _get_relation_options(session)
+{% endif %}
     return templates.TemplateResponse(request, "{{ entity.name }}_form.html", {
         **ctx, "item": item, "error": None, **options,
     })
@@ -233,6 +271,11 @@ def update_{{ entity.name }}_submit(
 {% endfor %}
         )
         updates = {k: v for k, v in all_data.items() if v is not None}
+{% if tenant_fk_field %}
+        _tid = getattr(request.state, "current_tenant_id", None)
+        if _tid is not None:
+            updates["{{ tenant_fk_field }}_id"] = _tid
+{% endif %}
         repo = SQLAlchemy{{ entity.class_name }}Repository(session)
         use_case = Update{{ entity.class_name }}(repo)
         use_case(item_id, updates)
@@ -240,7 +283,11 @@ def update_{{ entity.name }}_submit(
         return RedirectResponse(url="/{{ entity.name }}", status_code=303)
     except Exception as exc:
         session.rollback()
+{% if tenant_name %}
+        options = _get_relation_options(session, tenant_id=getattr(request.state, "current_tenant_id", None))
+{% else %}
         options = _get_relation_options(session)
+{% endif %}
         item = _build_form_item(
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
             {{ rel.field_name }}_id={{ rel.field_name }}_id,

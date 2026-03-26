@@ -24,6 +24,19 @@ class {{ entity.class_name }}Model(Base):
 {% for field in entity.fields %}
     {{ field.name }}: Mapped[{{ field_types[field.name] }}] = mapped_column({{ sqla_column_types[field.name] }}, nullable={{ field.is_null }})
 {% endfor %}
+{% if entity.representation %}
+
+    def __str__(self) -> str:
+        parts = []
+{% for rep_field in entity.representation %}
+{% if rep_field in entity.relation_names %}
+        parts.append(str(self.{{ rep_field }}) if self.{{ rep_field }} else "")
+{% else %}
+        parts.append(str(self.{{ rep_field }}) if self.{{ rep_field }} is not None else "")
+{% endif %}
+{% endfor %}
+        return " ".join(parts).strip()
+{% endif %}
 {% if table_args %}
 
     __table_args__ = (

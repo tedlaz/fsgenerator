@@ -16,6 +16,18 @@
                 <span class="brand-icon">{{ app_name[0] | upper }}</span>
                 {{ app_name }}
             </a>
+{% if tenant_name %}
+            <div class="tenant-selector" style="padding:0.5rem 1rem">
+                <select class="form-select" style="width:100%" onchange="if(this.value){window.location.href='/set-tenant/'+this.value}else{window.location.href='/clear-tenant'}">
+                    <option value="">{% raw %}{{ t("common.all") }}{% endraw %} {% raw %}{{ t("{% endraw %}{{ tenant_name }}{% raw %}._label") }}{% endraw %}</option>
+                    {% raw %}{% for tn in request.state.tenants %}{% endraw %}
+
+                    <option value="{% raw %}{{ tn.id }}{% endraw %}" {% raw %}{% if request.state.current_tenant and request.state.current_tenant.id == tn.id %}selected{% endif %}{% endraw %}>{% raw %}{{ tn }}{% endraw %}</option>
+                    {% raw %}{% endfor %}{% endraw %}
+
+                </select>
+            </div>
+{% endif %}
             <hr>
             <ul class="nav">
 {% for entity in entities %}

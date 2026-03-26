@@ -18,6 +18,16 @@ class List{{ entity.class_name }}s:
         return self.repository.list_all()
 
 
+{% if has_tenant_filter %}
+@dataclass
+class List{{ entity.class_name }}sByTenant:
+    repository: {{ entity.class_name }}Repository
+
+    def __call__(self, tenant_id: {{ id_type }}) -> list[{{ entity.class_name }}]:
+        return self.repository.list_by_tenant(tenant_id)
+
+
+{% endif %}
 @dataclass
 class Get{{ entity.class_name }}:
     repository: {{ entity.class_name }}Repository

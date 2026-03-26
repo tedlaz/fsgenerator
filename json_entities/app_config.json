@@ -1,4 +1,5 @@
 {
   "app_name": "my_app",
-  "id_type": "integer"
+  "id_type": "integer",
+  "tenant": "company"
 }

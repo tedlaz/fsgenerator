@@ -17,6 +17,9 @@ from application.use_cases.{{ entity.name }} import (
     Delete{{ entity.class_name }},
     Get{{ entity.class_name }},
     List{{ entity.class_name }}s,
+{% if has_tenant_filter %}
+    List{{ entity.class_name }}sByTenant,
+{% endif %}
     Update{{ entity.class_name }},
 )
 from auth_security import decode_access_token, get_current_user_or_none
@@ -41,10 +44,18 @@ def _require_auth(
 
 
 @router.get("/", response_model=list[{{ entity.class_name }}Response])
+{% if has_tenant_filter %}
+def list_{{ entity.name }}s(tenant_id: {{ id_type }} | None = None, session: Session = Depends(get_session), _user=Depends(_require_auth)):
+    repo = SQLAlchemy{{ entity.class_name }}Repository(session)
+    if tenant_id is not None:
+        return List{{ entity.class_name }}sByTenant(repo)(tenant_id)
+    return List{{ entity.class_name }}s(repo)()
+{% else %}
 def list_{{ entity.name }}s(session: Session = Depends(get_session), _user=Depends(_require_auth)):
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
     use_case = List{{ entity.class_name }}s(repo)
     return use_case()
+{% endif %}
 
 
 @router.get("/{{ '{' }}{{ entity.name }}_id{{ '}' }}", response_model={{ entity.class_name }}Response)

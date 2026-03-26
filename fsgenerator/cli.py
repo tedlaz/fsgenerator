@@ -20,7 +20,7 @@ from fsgenerator.generators import (
     use_case,
 )
 from fsgenerator.parser import AppConfig, load_entities
-from fsgenerator.resolver import topological_sort
+from fsgenerator.resolver import compute_tenant_chains, topological_sort
 from fsgenerator.writer import ensure_init_files, write_files
 
 PER_ENTITY_GENERATORS = [
@@ -58,7 +58,9 @@ def _init_json_entities() -> None:
         if f.is_file():
             (dest / f.name).write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
             print(f"  {f.name}")
-    print(f"Created {dest} with sample files. Edit them and run fsgenerator to generate your app.")
+    print(
+        f"Created {dest} with sample files. Edit them and run fsgenerator to generate your app."
+    )
 
 
 def main() -> None:
@@ -97,6 +99,9 @@ def main() -> None:
     output_dir = output_parent / config.app_name
     entities = load_entities(input_dir)
     sorted_entities = topological_sort(entities)
+
+    if config.tenant:
+        config.tenant_chains = compute_tenant_chains(sorted_entities, config.tenant)
 
     env = Environment(
         loader=FileSystemLoader(str(_templates_dir())),
