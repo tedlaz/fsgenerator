@@ -18,6 +18,7 @@ def generate(entities: list[EntityDef], config: AppConfig) -> list[tuple[str, st
             "edit": "Edit",
             "delete": "Delete",
             "add_new": "Add New",
+            "add_child": "Add Child",
             "actions": "Actions",
             "id": "ID",
             "list": "List",

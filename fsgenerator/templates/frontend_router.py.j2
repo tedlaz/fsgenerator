@@ -38,6 +38,7 @@ from infrastructure.persistence.sqlalchemy.repositories.{{ rel.target_entity }} 
 from application.use_cases.{{ subform_entity.name }} import (
     Create{{ subform_entity.class_name }},
     Delete{{ subform_entity.class_name }},
+    Update{{ subform_entity.class_name }},
 )
 from domain.entities.{{ subform_entity.name }} import {{ subform_entity.class_name }}
 from infrastructure.persistence.sqlalchemy.models.{{ subform_entity.name }} import {{ subform_entity.class_name }}Model as _SubModel
@@ -46,8 +47,23 @@ from infrastructure.persistence.sqlalchemy.repositories.{{ subform_entity.name }
 )
 {% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
 from application.use_cases.{{ rel.target_entity }} import List{{ rel.target_entity | capitalize }}s as _SubList{{ rel.target_entity | capitalize }}s
+{% if rel.field_name in subform_tenant_filtered %}
+from application.use_cases.{{ rel.target_entity }} import List{{ rel.target_entity | capitalize }}sByTenant as _SubList{{ rel.target_entity | capitalize }}sByTenant
+{% endif %}
 from infrastructure.persistence.sqlalchemy.repositories.{{ rel.target_entity }} import (
     SQLAlchemy{{ rel.target_entity | capitalize }}Repository as _Sub{{ rel.target_entity | capitalize }}Repo,
+)
+{% endfor %}
+{% endif %}
+{% if grandchild_entity %}
+from infrastructure.persistence.sqlalchemy.models.{{ grandchild_entity.name }} import {{ grandchild_entity.class_name }}Model as _GrandchildModel
+{% for rel in grandchild_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != subform_entity.name %}
+from application.use_cases.{{ rel.target_entity }} import List{{ rel.target_entity | capitalize }}s as _GcList{{ rel.target_entity | capitalize }}s
+{% if rel.field_name in grandchild_tenant_filtered %}
+from application.use_cases.{{ rel.target_entity }} import List{{ rel.target_entity | capitalize }}sByTenant as _GcList{{ rel.target_entity | capitalize }}sByTenant
+{% endif %}
+from infrastructure.persistence.sqlalchemy.repositories.{{ rel.target_entity }} import (
+    SQLAlchemy{{ rel.target_entity | capitalize }}Repository as _Gc{{ rel.target_entity | capitalize }}Repo,
 )
 {% endfor %}
 {% endif %}
@@ -182,8 +198,10 @@ def list_{{ entity.name }}s(request: Request, session: Session = Depends(get_ses
 {% endif %}
     ctx = _ctx(request)
     repo = SQLAlchemy{{ entity.class_name }}Repository(session)
-{% if has_tenant_filter %}
+{% if tenant_name %}
     _tid = getattr(request.state, "current_tenant_id", None)
+{% endif %}
+{% if has_tenant_filter %}
     if _tid is not None:
         items = List{{ entity.class_name }}sByTenant(repo)(_tid)
     else:
@@ -198,11 +216,44 @@ def list_{{ entity.name }}s(request: Request, session: Session = Depends(get_ses
     subform_items: dict = defaultdict(list)
     for _sr in _sub_rows:
         subform_items[_sr.{{ subform_parent_fk }}_id].append(_sr)
+    _subform_opts = {}
+{% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
+    _sub_{{ rel.field_name }}_repo = _Sub{{ rel.target_entity | capitalize }}Repo(session)
+{% if rel.field_name in subform_tenant_filtered %}
+    if _tid is not None:
+        _subform_opts["subform_{{ rel.field_name }}_options"] = _SubList{{ rel.target_entity | capitalize }}sByTenant(_sub_{{ rel.field_name }}_repo)(_tid)
+    else:
+        _subform_opts["subform_{{ rel.field_name }}_options"] = _SubList{{ rel.target_entity | capitalize }}s(_sub_{{ rel.field_name }}_repo)()
+{% else %}
+    _subform_opts["subform_{{ rel.field_name }}_options"] = _SubList{{ rel.target_entity | capitalize }}s(_sub_{{ rel.field_name }}_repo)()
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if grandchild_entity %}
+    _gc_rows = session.query(_GrandchildModel).all()
+    grandchild_items: dict = defaultdict(list)
+    for _gr in _gc_rows:
+        grandchild_items[_gr.{{ grandchild_parent_fk }}_id].append(_gr)
+    _gc_opts = {}
+{% for rel in grandchild_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != subform_entity.name %}
+    _gc_{{ rel.field_name }}_repo = _Gc{{ rel.target_entity | capitalize }}Repo(session)
+{% if rel.field_name in grandchild_tenant_filtered %}
+    if _tid is not None:
+        _gc_opts["grandchild_{{ rel.field_name }}_options"] = _GcList{{ rel.target_entity | capitalize }}sByTenant(_gc_{{ rel.field_name }}_repo)(_tid)
+    else:
+        _gc_opts["grandchild_{{ rel.field_name }}_options"] = _GcList{{ rel.target_entity | capitalize }}s(_gc_{{ rel.field_name }}_repo)()
+{% else %}
+    _gc_opts["grandchild_{{ rel.field_name }}_options"] = _GcList{{ rel.target_entity | capitalize }}s(_gc_{{ rel.field_name }}_repo)()
+{% endif %}
+{% endfor %}
 {% endif %}
     return templates.TemplateResponse(request, "{{ entity.name }}_list.html", {
         **ctx, "items": items, "error": error,
 {% if subform_entity %}
-        "subform_items": subform_items,
+        "subform_items": subform_items, **_subform_opts,
+{% endif %}
+{% if grandchild_entity %}
+        "grandchild_items": grandchild_items, **_gc_opts,
 {% endif %}
     })
 
@@ -304,8 +355,30 @@ def edit_{{ entity.name }}_form(item_id: {{ id_type }}, request: Request, sessio
     subform_ctx = {"subform_items": subform_items}
 {% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
     _sub_{{ rel.field_name }}_repo = _Sub{{ rel.target_entity | capitalize }}Repo(session)
+{% if rel.field_name in subform_tenant_filtered %}
+    _tid = getattr(request.state, "current_tenant_id", None)
+    if _tid is not None:
+        subform_ctx["subform_{{ rel.field_name }}_options"] = _SubList{{ rel.target_entity | capitalize }}sByTenant(_sub_{{ rel.field_name }}_repo)(_tid)
+    else:
+        subform_ctx["subform_{{ rel.field_name }}_options"] = _SubList{{ rel.target_entity | capitalize }}s(_sub_{{ rel.field_name }}_repo)()
+{% else %}
     subform_ctx["subform_{{ rel.field_name }}_options"] = _SubList{{ rel.target_entity | capitalize }}s(_sub_{{ rel.field_name }}_repo)()
+{% endif %}
 {% endfor %}
+{% if grandchild_entity %}
+{% for rel in grandchild_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != subform_entity.name %}
+    _gc_{{ rel.field_name }}_repo = _Gc{{ rel.target_entity | capitalize }}Repo(session)
+{% if rel.field_name in grandchild_tenant_filtered %}
+    _tid = getattr(request.state, "current_tenant_id", None)
+    if _tid is not None:
+        subform_ctx["grandchild_{{ rel.field_name }}_options"] = _GcList{{ rel.target_entity | capitalize }}sByTenant(_gc_{{ rel.field_name }}_repo)(_tid)
+    else:
+        subform_ctx["grandchild_{{ rel.field_name }}_options"] = _GcList{{ rel.target_entity | capitalize }}s(_gc_{{ rel.field_name }}_repo)()
+{% else %}
+    subform_ctx["grandchild_{{ rel.field_name }}_options"] = _GcList{{ rel.target_entity | capitalize }}s(_gc_{{ rel.field_name }}_repo)()
+{% endif %}
+{% endfor %}
+{% endif %}
 {% endif %}
     return templates.TemplateResponse(request, "{{ entity.name }}_form.html", {
         **ctx, "item": item, "error": None, **options,
@@ -406,6 +479,7 @@ def add_{{ subform_entity.name }}_submit(
 {% for field in subform_entity.fields %}
     {{ field.name }}: str | None = Form(None),
 {% endfor %}
+    return_url: str | None = Form(None),
 ):
     try:
         data = {"{{ subform_parent_fk }}_id": item_id}
@@ -446,7 +520,11 @@ def add_{{ subform_entity.name }}_submit(
         session.rollback()
         from urllib.parse import quote
         error_msg = quote(_format_error(exc, _ctx(request)["t"]))
+        if return_url and return_url.startswith("/"):
+            return RedirectResponse(url=f"{return_url}?error={error_msg}", status_code=303)
         return RedirectResponse(url=f"/{{ entity.name }}/{item_id}/edit?subform_error={error_msg}", status_code=303)
+    if return_url and return_url.startswith("/"):
+        return RedirectResponse(url=return_url, status_code=303)
     return RedirectResponse(url=f"/{{ entity.name }}/{item_id}/edit", status_code=303)
 
 
@@ -466,5 +544,74 @@ def delete_{{ subform_entity.name }}_submit(
         from urllib.parse import quote
         error_msg = quote(_format_error(exc, _ctx(request)["t"]))
         return RedirectResponse(url=f"/{{ entity.name }}/{item_id}/edit?subform_error={error_msg}", status_code=303)
+    return RedirectResponse(url=f"/{{ entity.name }}/{item_id}/edit", status_code=303)
+
+
+@router.post("/{{ '{' }}item_id{{ '}' }}/{{ subform_entity.name }}/{{ '{' }}detail_id{{ '}' }}/update")
+def update_{{ subform_entity.name }}_submit(
+    item_id: {{ id_type }},
+    detail_id: {{ id_type }},
+    request: Request,
+    session: Session = Depends(get_session),
+{% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
+    {{ rel.field_name }}_id: str | None = Form(None),
+{% endfor %}
+{% for field in subform_entity.fields %}
+    {{ field.name }}: str | None = Form(None),
+{% endfor %}
+    return_url: str | None = Form(None),
+):
+    try:
+        updates: dict = {}
+{% for rel in subform_entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.target_entity != entity.name %}
+{% if id_type == "int" %}
+        if {{ rel.field_name }}_id:
+            updates["{{ rel.field_name }}_id"] = int({{ rel.field_name }}_id)
+{% else %}
+        if {{ rel.field_name }}_id:
+            from uuid import UUID as _UUID
+            updates["{{ rel.field_name }}_id"] = _UUID({{ rel.field_name }}_id)
+{% endif %}
+{% endfor %}
+{% for field in subform_entity.fields %}
+{% if field.type in ("integer", "select") %}
+        if {{ field.name }} is not None:
+            updates["{{ field.name }}"] = int({{ field.name }}) if {{ field.name }} else None
+{% elif field.type in ("float",) %}
+        if {{ field.name }} is not None:
+            updates["{{ field.name }}"] = float({{ field.name }}) if {{ field.name }} else None
+{% elif field.type in ("value", "percent") %}
+        if {{ field.name }} is not None:
+            from decimal import Decimal as _Decimal
+            updates["{{ field.name }}"] = _Decimal({{ field.name }}) if {{ field.name }} else None
+{% elif field.type == "iso_date" %}
+        if {{ field.name }} is not None:
+            from datetime import date as _date
+            updates["{{ field.name }}"] = _date.fromisoformat({{ field.name }}) if {{ field.name }} else None
+{% elif field.type == "iso_datetime" %}
+        if {{ field.name }} is not None:
+            from datetime import datetime as _datetime
+            updates["{{ field.name }}"] = _datetime.fromisoformat({{ field.name }}) if {{ field.name }} else None
+{% elif field.type == "time" %}
+        if {{ field.name }} is not None:
+            from datetime import time as _time
+            updates["{{ field.name }}"] = _time.fromisoformat({{ field.name }}) if {{ field.name }} else None
+{% else %}
+        if {{ field.name }} is not None:
+            updates["{{ field.name }}"] = {{ field.name }} or None
+{% endif %}
+{% endfor %}
+        repo = SQLAlchemy{{ subform_entity.class_name }}Repository(session)
+        Update{{ subform_entity.class_name }}(repo)(detail_id, updates)
+        session.commit()
+    except Exception as exc:
+        session.rollback()
+        from urllib.parse import quote
+        error_msg = quote(_format_error(exc, _ctx(request)["t"]))
+        if return_url and return_url.startswith("/"):
+            return RedirectResponse(url=f"{return_url}?error={error_msg}", status_code=303)
+        return RedirectResponse(url=f"/{{ entity.name }}/{item_id}/edit?subform_error={error_msg}", status_code=303)
+    if return_url and return_url.startswith("/"):
+        return RedirectResponse(url=return_url, status_code=303)
     return RedirectResponse(url=f"/{{ entity.name }}/{item_id}/edit", status_code=303)
 {% endif %}

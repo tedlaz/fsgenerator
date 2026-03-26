@@ -1,0 +1,27 @@
+{
+  "name": "mis",
+  "fields": {
+    "type": {
+      "type": "select",
+      "options": [
+        [1, "Μηνιαία"],
+        [2, "Δώρο Πάσχα"],
+        [3, "Δώρο Χριστουγέννων"],
+        [4, "Επίδομα Αδείας"]
+      ]
+    },
+    "run_date": { "type": "iso-date" },
+    "year": { "type": "integer" },
+    "month": { "type": "integer" },
+    "name": { "type": "string", "maxLength": 100 },
+    "description": { "type": "string", "maxLength": 255, "isnull": true }
+  },
+  "relations": {
+    "ypokatastima": { "type": "many_to_one", "entity": "ypokatastima" }
+  },
+  "unique": {
+    "unique_year_month_type": ["ypokatastima","year", "month", "type"]
+  },
+  "representation": ["type", "year", "month"],
+  "subform": "mis_erg"
+}

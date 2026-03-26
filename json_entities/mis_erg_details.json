@@ -1,0 +1,12 @@
+{
+  "name": "mis_erg_details",
+  "fields": {
+    "parameter": { "type": "string", "maxLength": 30 },
+    "description": { "type": "string", "maxLength": 255, "isnull": true },
+    "value": { "type": "value" }
+  },
+  "relations": {
+    "mis_erg": { "type": "many_to_one", "entity": "mis_erg" }
+  },
+  "representation": ["mis_erg", "parameter", "value"]
+}

@@ -13,7 +13,8 @@ Global configuration for the generated application.
 ```json
 {
   "app_name": "my_app",
-  "id_type": "integer"
+  "id_type": "integer",
+  "tenant": "company"
 }
 ```
 
@@ -21,6 +22,7 @@ Global configuration for the generated application.
 |------------|----------|-------------------------------------------------------|
 | `app_name` | yes      | Name of the generated application (used as folder name and package name) |
 | `id_type`  | yes      | Primary key type: `"integer"` (auto-increment) or `"uuid"` |
+| `tenant`   | no       | Entity name that acts as the global tenant filter (e.g. `"company"`) |
 
 ---
 
@@ -45,6 +47,7 @@ Each entity file (e.g. `company.json`) has this structure:
 | `fields`         | yes      | Dictionary of field definitions (see below)               |
 | `relations`      | no       | Dictionary of relation definitions (see below)            |
 | `unique`         | no       | Dictionary of unique constraints (see below)              |
+| `subform`        | no       | Name of a child entity to embed inline (master-detail)    |
 
 ---
 
@@ -159,6 +162,73 @@ as text (e.g. in dropdowns and list views):
 
 This can include both regular fields and relation names. Relations are shown
 using the related entity's own representation.
+
+---
+
+## Multi-Tenant Support
+
+Set `"tenant"` in `app_config.json` to an entity name to enable multi-tenancy:
+
+```json
+{
+  "app_name": "my_app",
+  "id_type": "integer",
+  "tenant": "company"
+}
+```
+
+When enabled:
+
+- A **tenant selector** appears in the sidebar to filter all data
+- Records are automatically scoped to the selected tenant
+- Tenant entity CRUD and user management are restricted to **admin users**
+- Relation dropdowns are filtered to show only tenant-scoped records
+- Entities with a direct or indirect `many_to_one` path to the tenant are filtered
+
+---
+
+## Subforms (Master-Detail)
+
+Add `"subform"` to a parent entity to embed a child entity inline on the
+parent's edit form and list page:
+
+**contract.json**
+```json
+{
+  "name": "contract",
+  "representation": ["name"],
+  "fields": {
+    "name": { "type": "string", "maxLength": 80 }
+  },
+  "unique": { "unique_name": ["name"] },
+  "subform": "contract_detail"
+}
+```
+
+**contract_detail.json**
+```json
+{
+  "name": "contract_detail",
+  "representation": ["start_date"],
+  "fields": {
+    "start_date": { "type": "iso-date" },
+    "amount": { "type": "value" }
+  },
+  "relations": {
+    "contract": { "type": "many_to_one", "entity": "contract" }
+  },
+  "unique": {
+    "unique_contract_date": ["contract", "start_date"]
+  }
+}
+```
+
+The child entity **must** have a `many_to_one` relation back to the parent.
+The generator will:
+
+- Show child records in a table on the parent's **edit page** with inline add/delete
+- Add **accordion rows** on the parent's **list page** to expand and view details
+- **Hide** the child entity from the sidebar navigation
 
 ---
 

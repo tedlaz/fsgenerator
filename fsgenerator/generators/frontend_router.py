@@ -38,6 +38,10 @@ def generate(
     # Resolve subform entity if present
     subform_entity = None
     subform_parent_fk = None
+    subform_tenant_filtered: set[str] = set()
+    grandchild_entity = None
+    grandchild_parent_fk = None
+    grandchild_tenant_filtered: set[str] = set()
     if entity.subform and entity.subform in config.entities_by_name:
         subform_entity = config.entities_by_name[entity.subform]
         for rel in subform_entity.relations:
@@ -47,6 +51,39 @@ def generate(
             ):
                 subform_parent_fk = rel.field_name
                 break
+        # Determine tenant-filtered subform relations
+        if config.tenant and config.tenant_chains:
+            for rel in subform_entity.relations:
+                if (
+                    rel.type in ("many_to_one", "one_to_one")
+                    and rel.target_entity != entity.name
+                ):
+                    target_chain = config.tenant_chains.get(rel.target_entity)
+                    if target_chain is not None and rel.target_entity != config.tenant:
+                        subform_tenant_filtered.add(rel.field_name)
+        # Resolve grandchild (subform of subform)
+        if subform_entity.subform and subform_entity.subform in config.entities_by_name:
+            grandchild_entity = config.entities_by_name[subform_entity.subform]
+            for rel in grandchild_entity.relations:
+                if (
+                    rel.type in ("many_to_one", "one_to_one")
+                    and rel.target_entity == subform_entity.name
+                ):
+                    grandchild_parent_fk = rel.field_name
+                    break
+            # Determine tenant-filtered grandchild relations
+            if config.tenant and config.tenant_chains:
+                for rel in grandchild_entity.relations:
+                    if (
+                        rel.type in ("many_to_one", "one_to_one")
+                        and rel.target_entity != subform_entity.name
+                    ):
+                        target_chain = config.tenant_chains.get(rel.target_entity)
+                        if (
+                            target_chain is not None
+                            and rel.target_entity != config.tenant
+                        ):
+                            grandchild_tenant_filtered.add(rel.field_name)
 
     content = template.render(
         entity=entity,
@@ -59,6 +96,10 @@ def generate(
         is_tenant_entity=config.tenant is not None and entity.name == config.tenant,
         subform_entity=subform_entity,
         subform_parent_fk=subform_parent_fk,
+        subform_tenant_filtered=subform_tenant_filtered,
+        grandchild_entity=grandchild_entity,
+        grandchild_parent_fk=grandchild_parent_fk,
+        grandchild_tenant_filtered=grandchild_tenant_filtered,
     )
 
     return [(f"infrastructure/web/fastapi/routers/{entity.name}_frontend.py", content)]

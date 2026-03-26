@@ -141,6 +141,7 @@ Fields:
 - id_type: Global ID type for primary and foreign keys
 	- integer
 	- uuid
+- tenant (optional): Entity name that acts as the global tenant (e.g. `"company"`)
 
 ### Entity JSON example
 
@@ -171,6 +172,7 @@ Fields:
 - fields: Dictionary of scalar fields
 - relations: Dictionary of relations
 - unique: Named unique constraints
+- subform (optional): Name of a child entity to embed inline on the parent's edit form and list page
 
 ### Field options
 
@@ -214,6 +216,41 @@ Mapping behavior is defined in fsgenerator/type_mapping.py.
 	- one_to_one
 - Dependency sorting is based on many_to_one and one_to_one relations.
 - Relation fields are placed before data fields in all generated files (entities, DTOs, models, templates).
+
+## Multi-tenant support
+
+Set `"tenant": "company"` in `app_config.json` to enable multi-tenancy. The generator will:
+
+- Add a **tenant selector** dropdown in the sidebar that filters all data by the selected tenant
+- Store the selected tenant in a cookie (`tenant_id`)
+- Automatically set tenant foreign keys when creating records while a tenant is selected
+- Lock tenant-dependent form fields when a tenant is active
+- Restrict tenant entity CRUD and user management to **admin users only** (sidebar footer)
+- Filter relation dropdowns to show only records belonging to the current tenant
+- Use BFS join chains to resolve indirect tenant relationships
+
+Entities are filtered by tenant when they have a direct or indirect `many_to_one` path to the tenant entity.
+
+## Subforms (master-detail)
+
+Add `"subform": "child_entity_name"` to a parent entity JSON to embed child records inline.
+
+Example:
+
+```json
+{
+	"name": "syllogiki_symbasi",
+	"fields": { "name": { "type": "string", "maxLength": 80 } },
+	"subform": "syllogiki_symbasi_details"
+}
+```
+
+The child entity must have a `many_to_one` relation back to the parent. The generator will:
+
+- **Edit page**: Show a table of child records below the parent form with inline add/delete
+- **List page**: Add accordion rows — click a parent row's chevron to expand and view its child records
+- **Sidebar**: Hide the child entity from navigation (it is only accessible through the parent)
+- **Routes**: Generate dedicated add/delete POST endpoints for child records on the parent's frontend router
 
 ## Unique constraints
 
@@ -327,6 +364,8 @@ After template changes, run the generator again.
 - many_to_many and one_to_many relations are parsed but are not fully emitted as SQLAlchemy relationship collections in current templates.
 - primary_key inside field definitions is parsed but global ID generation from app_config.id_type is used.
 - No migration generation is included (for example, Alembic).
+- Only one level of subform nesting is supported (no nested subforms within subforms).
+- The JWT secret is regenerated on each app restart (use an environment variable for production).
 
 ## Troubleshooting
 
@@ -343,4 +382,4 @@ After template changes, run the generator again.
 
 ## Version
 
-Current version: 0.5.0
+Current version: 0.6.0
