@@ -46,13 +46,37 @@ def generate(
                     grandchild_parent_fk = rel.field_name
                     break
 
+    # Compute subform/grandchild tenant FK fields
+    subform_tenant_fk: str | None = None
+    grandchild_tenant_fk: str | None = None
+    if config.tenant:
+        if subform_entity and subform_entity.name != config.tenant:
+            for rel in subform_entity.relations:
+                if (
+                    rel.type in ("many_to_one", "one_to_one")
+                    and rel.target_entity == config.tenant
+                ):
+                    subform_tenant_fk = rel.field_name
+                    break
+        if grandchild_entity and grandchild_entity.name != config.tenant:
+            for rel in grandchild_entity.relations:
+                if (
+                    rel.type in ("many_to_one", "one_to_one")
+                    and rel.target_entity == config.tenant
+                ):
+                    grandchild_tenant_fk = rel.field_name
+                    break
+
     list_template = env.get_template("html_list.html.j2")
     list_content = list_template.render(
         entity=entity,
+        tenant_fk_field=tenant_fk_field,
         subform_entity=subform_entity,
         subform_parent_fk=subform_parent_fk,
+        subform_tenant_fk=subform_tenant_fk,
         grandchild_entity=grandchild_entity,
         grandchild_parent_fk=grandchild_parent_fk,
+        grandchild_tenant_fk=grandchild_tenant_fk,
     )
     files.append((f"templates/{entity.name}_list.html", list_content))
 

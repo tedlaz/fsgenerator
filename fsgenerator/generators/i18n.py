@@ -33,6 +33,8 @@ def generate(entities: list[EntityDef], config: AppConfig) -> list[tuple[str, st
             "error_generic": "An error occurred",
             "no_records": "No records",
             "all": "All",
+            "view": "View",
+            "close": "Close",
         },
         "auth": {
             "login": "Login",

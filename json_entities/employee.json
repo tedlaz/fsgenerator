@@ -7,6 +7,13 @@
     "patronymo": { "type": "string", "maxLength": 30 },
     "mitronymo": { "type": "string", "maxLength": 30 },
     "birthday": { "type": "iso-date", "isnull": false },
+    "sex": {
+      "type": "select",
+      "options": [
+        [0, "Άνδρας"],
+        [1, "Γυναίκα"]
+      ]
+    },
     "afm": { "type": "string_numeric", "length": 9 },
     "amka": { "type": "string_numeric", "length": 11 }
   },

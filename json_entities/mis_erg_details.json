@@ -8,5 +8,8 @@
   "relations": {
     "mis_erg": { "type": "many_to_one", "entity": "mis_erg" }
   },
+  "unique": {
+    "unique_parameter": ["mis_erg", "parameter"]
+  },
   "representation": ["mis_erg", "parameter", "value"]
 }

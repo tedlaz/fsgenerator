@@ -3,7 +3,6 @@
   "representation": ["employee", "start_date"],
   "fields": {
     "start_date": { "type": "iso-date" },
-    "name": { "type": "string", "maxLength": 30 },
     "diarkeia": {
       "type": "select",
       "options": [

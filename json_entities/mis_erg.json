@@ -1,15 +1,15 @@
 {
   "name": "mis_erg",
   "fields": {
-    "nam": { "type": "string", "maxLength": 100 }
+    "nam": { "type": "string", "maxLength": 100, "isnull": true }
   },
   "relations": {
     "mis": { "type": "many_to_one", "entity": "mis" },
-    "employee": { "type": "many_to_one", "entity": "employee" }
+    "symbasi": { "type": "many_to_one", "entity": "symbasi" }
   },
   "unique": {
-    "unique_employee": ["employee"]
+    "unique_symbasi": ["mis", "symbasi"]
   },
-  "representation": ["mis", "employee"],
+  "representation": ["mis", "symbasi"],
   "subform": "mis_erg_details"
 }

@@ -14,14 +14,13 @@
 <form method="post">
 {% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
 {% if tenant_fk_field and rel.field_name == tenant_fk_field %}
+    {% raw %}{% if request.state.current_tenant %}{% endraw %}
+
+    <input type="hidden" name="{{ rel.field_name }}_id" value="{% raw %}{{ request.state.current_tenant.id }}{% endraw %}">
+    {% raw %}{% else %}{% endraw %}
+
     <div class="form-group">
         <label for="{{ rel.field_name }}_id" class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</label>
-        {% raw %}{% if request.state.current_tenant %}{% endraw %}
-
-        <input type="hidden" name="{{ rel.field_name }}_id" value="{% raw %}{{ request.state.current_tenant.id }}{% endraw %}">
-        <input type="text" class="form-control" disabled value="{% raw %}{{ request.state.current_tenant }}{% endraw %}">
-        {% raw %}{% else %}{% endraw %}
-
         <select class="form-select" id="{{ rel.field_name }}_id" name="{{ rel.field_name }}_id">
             <option value="">{% raw %}{{ t("common.select") }}{% endraw %}</option>
             {% raw %}{% for opt in {% endraw %}{{ rel.field_name }}_options{% raw %} %}{% endraw %}
@@ -30,9 +29,9 @@
             {% raw %}{% endfor %}{% endraw %}
 
         </select>
-        {% raw %}{% endif %}{% endraw %}
-
     </div>
+    {% raw %}{% endif %}{% endraw %}
+
 {% else %}
     <div class="form-group">
         <label for="{{ rel.field_name }}_id" class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</label>
@@ -131,7 +130,7 @@
                 <div class="actions">
                     <button type="button" class="btn btn-sm btn-warning" onclick="openSubEditModal(this.closest('tr'))">{% raw %}{{ t("common.edit") }}{% endraw %}</button>
 {% if grandchild_entity %}
-                    <button type="button" class="btn btn-sm btn-info" onclick="openFormGcAddModal('{% raw %}{{ detail.id }}{% endraw %}')">{% raw %}{{ t("common.add_child") }}{% endraw %}</button>
+                    <button type="button" class="btn btn-sm btn-success" onclick="openFormGcAddModal('{% raw %}{{ detail.id }}{% endraw %}')">{% raw %}{{ t("common.add_child") }}{% endraw %}</button>
 {% endif %}
                     <form class="delete-form" method="post" action="/{{ entity.name }}/{% raw %}{{ item.id }}{% endraw %}/{{ subform_entity.name }}/{% raw %}{{ detail.id }}{% endraw %}/delete" style="display:inline">
                         <button type="submit" class="btn btn-sm btn-danger">{% raw %}{{ t("common.delete") }}{% endraw %}</button>
@@ -145,7 +144,7 @@
 </table>
 </div>
 <div class="form-card" style="text-align:right">
-    <button type="button" class="btn btn-primary" onclick="openFormSubAddModal()">{% raw %}{{ t("common.add_new") }}{% endraw %} {% raw %}{{ t("{% endraw %}{{ subform_entity.name }}{% raw %}._label") }}{% endraw %}</button>
+    <button type="button" class="btn btn-success" onclick="openFormSubAddModal()">{% raw %}{{ t("common.add_new") }}{% endraw %} {% raw %}{{ t("{% endraw %}{{ subform_entity.name }}{% raw %}._label") }}{% endraw %}</button>
 </div>
 {% raw %}{% endif %}{% endraw %}
 <!-- Subform edit modal -->

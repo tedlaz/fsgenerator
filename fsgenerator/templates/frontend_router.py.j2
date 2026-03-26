@@ -210,6 +210,11 @@ def list_{{ entity.name }}s(request: Request, session: Session = Depends(get_ses
     items = List{{ entity.class_name }}s(repo)()
 {% endif %}
     error = request.query_params.get("error")
+{% if tenant_name %}
+    options = _get_relation_options(session, tenant_id=_tid)
+{% else %}
+    options = _get_relation_options(session)
+{% endif %}
 {% if subform_entity %}
     from collections import defaultdict
     _sub_rows = session.query(_SubModel).all()
@@ -248,7 +253,7 @@ def list_{{ entity.name }}s(request: Request, session: Session = Depends(get_ses
 {% endfor %}
 {% endif %}
     return templates.TemplateResponse(request, "{{ entity.name }}_list.html", {
-        **ctx, "items": items, "error": error,
+        **ctx, "items": items, "error": error, **options,
 {% if subform_entity %}
         "subform_items": subform_items, **_subform_opts,
 {% endif %}
@@ -286,6 +291,7 @@ def create_{{ entity.name }}_submit(
 {% for field in entity.fields %}
     {{ field.name }}: str{{ " | None" if field.is_null else "" }} = Form({{ "None" if field.is_null else "..." }}),
 {% endfor %}
+    return_url: str | None = Form(None),
 ):
 {% if is_tenant_entity %}
     _redirect = _require_admin(request)
@@ -312,9 +318,15 @@ def create_{{ entity.name }}_submit(
         entity = {{ entity.class_name }}(**data)
         use_case(entity)
         session.commit()
+        if return_url and return_url.startswith("/"):
+            return RedirectResponse(url=return_url, status_code=303)
         return RedirectResponse(url="/{{ entity.name }}", status_code=303)
     except Exception as exc:
         session.rollback()
+        from urllib.parse import quote
+        error_msg = quote(_format_error(exc, _ctx(request)["t"]))
+        if return_url and return_url.startswith("/"):
+            return RedirectResponse(url=f"{return_url}?error={error_msg}", status_code=303)
 {% if tenant_name %}
         options = _get_relation_options(session, tenant_id=getattr(request.state, "current_tenant_id", None))
 {% else %}
@@ -399,6 +411,7 @@ def update_{{ entity.name }}_submit(
 {% for field in entity.fields %}
     {{ field.name }}: str | None = Form(None),
 {% endfor %}
+    return_url: str | None = Form(None),
 ):
 {% if is_tenant_entity %}
     _redirect = _require_admin(request)
@@ -425,9 +438,15 @@ def update_{{ entity.name }}_submit(
         use_case = Update{{ entity.class_name }}(repo)
         use_case(item_id, updates)
         session.commit()
+        if return_url and return_url.startswith("/"):
+            return RedirectResponse(url=return_url, status_code=303)
         return RedirectResponse(url="/{{ entity.name }}", status_code=303)
     except Exception as exc:
         session.rollback()
+        from urllib.parse import quote
+        error_msg = quote(_format_error(exc, _ctx(request)["t"]))
+        if return_url and return_url.startswith("/"):
+            return RedirectResponse(url=f"{return_url}?error={error_msg}", status_code=303)
 {% if tenant_name %}
         options = _get_relation_options(session, tenant_id=getattr(request.state, "current_tenant_id", None))
 {% else %}

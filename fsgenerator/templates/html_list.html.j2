@@ -11,7 +11,7 @@
 {% raw %}{% endif %}{% endraw %}
 <div class="toolbar">
     <h1 style="margin-bottom:0">{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }}{% endraw %}</h1>
-    <a href="/{{ entity.name }}/new" class="btn btn-primary">{% raw %}{{ t("common.add_new") }}{% endraw %}</a>
+    <button type="button" class="btn btn-success" onclick="openMainAddModal()">{% raw %}{{ t("common.add_new") }}{% endraw %}</button>
 </div>
 <div class="table-wrapper">
 <table class="table">
@@ -21,10 +21,10 @@
             <th style="width:2rem"></th>
 {% endif %}
             <th>{% raw %}{{ t("common.id") }}{% endraw %}</th>
-{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.field_name != tenant_fk_field and rel.field_name in entity.representation %}
             <th>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</th>
 {% endfor %}
-{% for field in entity.fields %}
+{% for field in entity.fields if field.name in entity.representation %}
             <th>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</th>
 {% endfor %}
             <th>{% raw %}{{ t("common.actions") }}{% endraw %}</th>
@@ -33,15 +33,23 @@
     <tbody>
         {% raw %}{% for item in items %}{% endraw %}
 
-        <tr{% if subform_entity %} class="accordion-parent" onclick="toggleAccordion(this)"{% endif %}>
+        <tr{% if subform_entity %} class="accordion-parent" onclick="toggleAccordion(this)"{% endif %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.field_name != tenant_fk_field %}
+            data-{{ rel.field_name }}_id="{% raw %}{{ item.{% endraw %}{{ rel.field_name }}_id{% raw %} }}{% endraw %}"
+{% endfor %}
+{% for field in entity.fields %}
+            data-{{ field.name }}="{% raw %}{{ item.{% endraw %}{{ field.name }}{% raw %} }}{% endraw %}"
+{% endfor %}
+            data-id="{% raw %}{{ item.id }}{% endraw %}"
+        >
 {% if subform_entity %}
             <td class="accordion-chevron">&#9654;</td>
 {% endif %}
             <td><span class="badge">{% raw %}{{ item.id }}{% endraw %}</span></td>
-{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") %}
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.field_name != tenant_fk_field and rel.field_name in entity.representation %}
             <td>{% raw %}{{ item.{% endraw %}{{ rel.field_name }}{% raw %} }}{% endraw %}</td>
 {% endfor %}
-{% for field in entity.fields %}
+{% for field in entity.fields if field.name in entity.representation %}
 {% if field.type == "select" and field.options %}
             <td>{% raw %}{{ {% endraw %}{{ '{' }}{% for opt_value, opt_label in field.options %}{{ opt_value }}: "{{ opt_label }}"{{ ", " if not loop.last else "" }}{% endfor %}{{ '}' }}{% raw %}.get(item.{% endraw %}{{ field.name }}{% raw %}, item.{% endraw %}{{ field.name }}{% raw %}) }}{% endraw %}</td>
 {% else %}
@@ -50,9 +58,10 @@
 {% endfor %}
             <td>
                 <div class="actions">
-                    <a href="/{{ entity.name }}/{% raw %}{{ item.id }}{% endraw %}/edit" class="btn btn-sm btn-warning">{% raw %}{{ t("common.edit") }}{% endraw %}</a>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();openViewModal(this.closest('tr'))">{% raw %}{{ t("common.view") }}{% endraw %}</button>
+                    <button type="button" class="btn btn-sm btn-warning" onclick="event.stopPropagation();openMainModal(this.closest('tr'))">{% raw %}{{ t("common.edit") }}{% endraw %}</button>
 {% if subform_entity %}
-                    <button type="button" class="btn btn-sm btn-info" onclick="event.stopPropagation();openSubAddModal('{% raw %}{{ item.id }}{% endraw %}')">{% raw %}{{ t("common.add_child") }}{% endraw %}</button>
+                    <button type="button" class="btn btn-sm btn-success" onclick="event.stopPropagation();openSubAddModal('{% raw %}{{ item.id }}{% endraw %}')">{% raw %}{{ t("common.add_child") }}{% endraw %}</button>
 {% endif %}
                     <form class="delete-form" method="post" action="/{{ entity.name }}/{% raw %}{{ item.id }}{% endraw %}/delete">
                         <button type="submit" class="btn btn-sm btn-danger">{% raw %}{{ t("common.delete") }}{% endraw %}</button>
@@ -106,7 +115,7 @@
                                 <div class="actions">
                                     <button type="button" class="btn btn-sm btn-warning" onclick="event.stopPropagation();openSubModal(this.closest('tr'))">{% raw %}{{ t("common.edit") }}{% endraw %}</button>
 {% if grandchild_entity %}
-                                    <button type="button" class="btn btn-sm btn-info" onclick="event.stopPropagation();openGcAddModal('{% raw %}{{ detail.id }}{% endraw %}')">{% raw %}{{ t("common.add_child") }}{% endraw %}</button>
+                                    <button type="button" class="btn btn-sm btn-success" onclick="event.stopPropagation();openGcAddModal('{% raw %}{{ detail.id }}{% endraw %}')">{% raw %}{{ t("common.add_child") }}{% endraw %}</button>
 {% endif %}
                                     <form class="delete-form" method="post" action="/{{ entity.name }}/{% raw %}{{ item.id }}{% endraw %}/{{ subform_entity.name }}/{% raw %}{{ detail.id }}{% endraw %}/delete" style="display:inline">
                                         <button type="submit" class="btn btn-sm btn-danger" onclick="event.stopPropagation()">{% raw %}{{ t("common.delete") }}{% endraw %}</button>
@@ -187,6 +196,133 @@
 
     </tbody>
 </table>
+</div>
+<!-- Main entity edit modal -->
+<div id="mainModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>{% raw %}{{ t("common.edit") }}{% endraw %} {% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }}{% endraw %}</h3>
+        <form id="mainModalForm" method="post">
+            <input type="hidden" name="return_url" value="/{{ entity.name }}">
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.field_name != tenant_fk_field %}
+            <div class="form-group">
+                <label class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</label>
+                <select class="form-select" name="{{ rel.field_name }}_id" id="main_{{ rel.field_name }}_id">
+                    <option value="">{% raw %}{{ t("common.select") }}{% endraw %}</option>
+                    {% raw %}{% for opt in {% endraw %}{{ rel.field_name }}{% raw %}_options %}{% endraw %}
+
+                    <option value="{% raw %}{{ opt.id }}{% endraw %}">{% raw %}{{ opt }}{% endraw %}</option>
+                    {% raw %}{% endfor %}{% endraw %}
+
+                </select>
+            </div>
+{% endfor %}
+{% for field in entity.fields %}
+            <div class="form-group">
+                <label class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</label>
+{% if field.type in ("iso_date",) %}
+                <input type="date" class="form-control" name="{{ field.name }}" id="main_{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("iso_datetime",) %}
+                <input type="datetime-local" class="form-control" name="{{ field.name }}" id="main_{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("time",) %}
+                <input type="time" class="form-control" name="{{ field.name }}" id="main_{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("value", "percent", "float") %}
+                <input type="number" class="form-control" name="{{ field.name }}" id="main_{{ field.name }}" step="0.01"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("integer",) %}
+                <input type="number" class="form-control" name="{{ field.name }}" id="main_{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type == "select" and field.options %}
+                <select class="form-select" name="{{ field.name }}" id="main_{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+                    <option value="">{% raw %}{{ t("common.select") }}{% endraw %}</option>
+{% for opt_value, opt_label in field.options %}
+                    <option value="{{ opt_value }}">{{ opt_label }}</option>
+{% endfor %}
+                </select>
+{% elif field.type == "string_numeric" %}
+                <input type="text" class="form-control" name="{{ field.name }}" id="main_{{ field.name }}" pattern="\d+"{{ ' required' if not field.is_null else '' }}{{ ' maxlength="%d"' % (field.length or field.max_length) if (field.length or field.max_length) else '' }}>
+{% else %}
+                <input type="text" class="form-control" name="{{ field.name }}" id="main_{{ field.name }}"{{ ' required' if not field.is_null else '' }}{{ ' maxlength="%d"' % (field.length or field.max_length) if (field.length or field.max_length) else '' }}>
+{% endif %}
+            </div>
+{% endfor %}
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeMainModal()">{% raw %}{{ t("common.cancel") }}{% endraw %}</button>
+                <button type="submit" class="btn btn-primary">{% raw %}{{ t("common.save") }}{% endraw %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- View detail modal -->
+<div id="viewModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>{% raw %}{{ t("common.view") }}{% endraw %} {% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }}{% endraw %}</h3>
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.field_name != tenant_fk_field %}
+        <div class="form-group">
+            <label class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</label>
+            <div class="form-control" id="view_{{ rel.field_name }}" style="background:#f5f5f5;pointer-events:none"></div>
+        </div>
+{% endfor %}
+{% for field in entity.fields %}
+        <div class="form-group">
+            <label class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</label>
+            <div class="form-control" id="view_{{ field.name }}" style="background:#f5f5f5;pointer-events:none"></div>
+        </div>
+{% endfor %}
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeViewModal()">{% raw %}{{ t("common.close") }}{% endraw %}</button>
+        </div>
+    </div>
+</div>
+<!-- Main entity add modal -->
+<div id="mainAddModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>{% raw %}{{ t("common.add_new") }}{% endraw %} {% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }}{% endraw %}</h3>
+        <form id="mainAddModalForm" method="post" action="/{{ entity.name }}/new">
+            <input type="hidden" name="return_url" value="/{{ entity.name }}">
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.field_name != tenant_fk_field %}
+            <div class="form-group">
+                <label class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</label>
+                <select class="form-select" name="{{ rel.field_name }}_id">
+                    <option value="">{% raw %}{{ t("common.select") }}{% endraw %}</option>
+                    {% raw %}{% for opt in {% endraw %}{{ rel.field_name }}{% raw %}_options %}{% endraw %}
+
+                    <option value="{% raw %}{{ opt.id }}{% endraw %}">{% raw %}{{ opt }}{% endraw %}</option>
+                    {% raw %}{% endfor %}{% endraw %}
+
+                </select>
+            </div>
+{% endfor %}
+{% for field in entity.fields %}
+            <div class="form-group">
+                <label class="form-label">{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</label>
+{% if field.type in ("iso_date",) %}
+                <input type="date" class="form-control" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("iso_datetime",) %}
+                <input type="datetime-local" class="form-control" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("time",) %}
+                <input type="time" class="form-control" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("value", "percent", "float") %}
+                <input type="number" class="form-control" name="{{ field.name }}" step="0.01"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type in ("integer",) %}
+                <input type="number" class="form-control" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+{% elif field.type == "select" and field.options %}
+                <select class="form-select" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}>
+                    <option value="">{% raw %}{{ t("common.select") }}{% endraw %}</option>
+{% for opt_value, opt_label in field.options %}
+                    <option value="{{ opt_value }}">{{ opt_label }}</option>
+{% endfor %}
+                </select>
+{% elif field.type == "string_numeric" %}
+                <input type="text" class="form-control" name="{{ field.name }}" pattern="\d+"{{ ' required' if not field.is_null else '' }}{{ ' maxlength="%d"' % (field.length or field.max_length) if (field.length or field.max_length) else '' }}>
+{% else %}
+                <input type="text" class="form-control" name="{{ field.name }}"{{ ' required' if not field.is_null else '' }}{{ ' maxlength="%d"' % (field.length or field.max_length) if (field.length or field.max_length) else '' }}>
+{% endif %}
+            </div>
+{% endfor %}
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeMainAddModal()">{% raw %}{{ t("common.cancel") }}{% endraw %}</button>
+                <button type="submit" class="btn btn-primary">{% raw %}{{ t("common.save") }}{% endraw %}</button>
+            </div>
+        </form>
+    </div>
 </div>
 {% if subform_entity %}
 <!-- Subform edit modal -->
@@ -397,7 +533,52 @@
     </div>
 </div>
 {% endif %}
+{% endif %}
 <script>
+function openMainModal(row) {
+    var d = row.dataset;
+    var form = document.getElementById('mainModalForm');
+    form.action = '/{{ entity.name }}/' + d.id + '/edit';
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.field_name != tenant_fk_field %}
+    document.getElementById('main_{{ rel.field_name }}_id').value = d.{{ rel.field_name }}_id || '';
+{% endfor %}
+{% for field in entity.fields %}
+    document.getElementById('main_{{ field.name }}').value = d.{{ field.name }} || '';
+{% endfor %}
+    document.getElementById('mainModal').classList.add('open');
+}
+function closeMainModal() {
+    document.getElementById('mainModal').classList.remove('open');
+}
+function openMainAddModal() {
+    document.getElementById('mainAddModalForm').reset();
+    document.getElementById('mainAddModal').classList.add('open');
+}
+function closeMainAddModal() {
+    document.getElementById('mainAddModal').classList.remove('open');
+}
+function openViewModal(row) {
+    var d = row.dataset;
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.field_name != tenant_fk_field %}
+    var sel_{{ rel.field_name }} = document.getElementById('main_{{ rel.field_name }}_id');
+    var opt_{{ rel.field_name }} = sel_{{ rel.field_name }}.querySelector('option[value="' + (d.{{ rel.field_name }}_id || '') + '"]');
+    document.getElementById('view_{{ rel.field_name }}').textContent = opt_{{ rel.field_name }} ? opt_{{ rel.field_name }}.textContent : (d.{{ rel.field_name }}_id || '');
+{% endfor %}
+{% for field in entity.fields %}
+{% if field.type == "select" and field.options %}
+    var selF_{{ field.name }} = document.getElementById('main_{{ field.name }}');
+    var optF_{{ field.name }} = selF_{{ field.name }}.querySelector('option[value="' + (d.{{ field.name }} || '') + '"]');
+    document.getElementById('view_{{ field.name }}').textContent = optF_{{ field.name }} ? optF_{{ field.name }}.textContent : (d.{{ field.name }} || '');
+{% else %}
+    document.getElementById('view_{{ field.name }}').textContent = d.{{ field.name }} || '';
+{% endif %}
+{% endfor %}
+    document.getElementById('viewModal').classList.add('open');
+}
+function closeViewModal() {
+    document.getElementById('viewModal').classList.remove('open');
+}
+{% if subform_entity %}
 var _accKey = '{{ entity.name }}_acc';
 var _accState = JSON.parse(sessionStorage.getItem(_accKey) || '{}');
 
@@ -514,6 +695,6 @@ function openSubAddModal(parentId) {
 function closeSubAddModal() {
     document.getElementById('subAddModal').classList.remove('open');
 }
-</script>
 {% endif %}
+</script>
 {% raw %}{% endblock %}{% endraw %}
