@@ -1,0 +1,13 @@
+{
+  "name": "proslipsi",
+  "representation": ["employee", "proslipsi_date"],
+  "fields": {
+    "proslipsi_date": { "type": "iso-date"}
+  },
+  "unique": {
+    "unique_name": ["employee", "proslipsi_date"]
+  },
+    "relations": {
+    "employee": { "type": "many_to_one", "entity": "employee" }
+  }
+}

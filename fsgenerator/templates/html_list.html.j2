@@ -11,7 +11,10 @@
 {% raw %}{% endif %}{% endraw %}
 <div class="toolbar">
     <h1 style="margin-bottom:0">{% raw %}{{ t("{% endraw %}{{ entity.name }}{% raw %}._label") }}{% endraw %}</h1>
-    <button type="button" class="btn btn-success" onclick="openMainAddModal()">{% raw %}{{ t("common.add_new") }}{% endraw %}</button>
+    <div class="toolbar-actions">
+        <button type="button" class="btn btn-outline" onclick="openColModal()">&#9881; {% raw %}{{ t("common.columns") }}{% endraw %}</button>
+        <button type="button" class="btn btn-success" onclick="openMainAddModal()">{% raw %}{{ t("common.add_new") }}{% endraw %}</button>
+    </div>
 </div>
 <div class="table-wrapper">
 <table class="table">
@@ -20,14 +23,14 @@
 {% if subform_entity %}
             <th style="width:2rem"></th>
 {% endif %}
-            <th>{% raw %}{{ t("common.id") }}{% endraw %}</th>
-{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.field_name != tenant_fk_field and rel.field_name in entity.representation %}
-            <th>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</th>
+            <th data-col="id">{% raw %}{{ t("common.id") }}{% endraw %}</th>
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.field_name != tenant_fk_field %}
+            <th data-col="{{ rel.field_name }}"{{ ' data-col-default="hidden"' if rel.field_name not in entity.representation else '' }}>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</th>
 {% endfor %}
-{% for field in entity.fields if field.name in entity.representation %}
-            <th>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</th>
+{% for field in entity.fields %}
+            <th data-col="{{ field.name }}"{{ ' data-col-default="hidden"' if field.name not in entity.representation else '' }}>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</th>
 {% endfor %}
-            <th>{% raw %}{{ t("common.actions") }}{% endraw %}</th>
+            <th data-col="_actions">{% raw %}{{ t("common.actions") }}{% endraw %}</th>
         </tr>
     </thead>
     <tbody>
@@ -45,18 +48,18 @@
 {% if subform_entity %}
             <td class="accordion-chevron">&#9654;</td>
 {% endif %}
-            <td><span class="badge">{% raw %}{{ item.id }}{% endraw %}</span></td>
-{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.field_name != tenant_fk_field and rel.field_name in entity.representation %}
-            <td>{% raw %}{{ item.{% endraw %}{{ rel.field_name }}{% raw %} }}{% endraw %}</td>
+            <td data-col="id"><span class="badge">{% raw %}{{ item.id }}{% endraw %}</span></td>
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.field_name != tenant_fk_field %}
+            <td data-col="{{ rel.field_name }}">{% raw %}{{ item.{% endraw %}{{ rel.field_name }}{% raw %} }}{% endraw %}</td>
 {% endfor %}
-{% for field in entity.fields if field.name in entity.representation %}
+{% for field in entity.fields %}
 {% if field.type == "select" and field.options %}
-            <td>{% raw %}{{ {% endraw %}{{ '{' }}{% for opt_value, opt_label in field.options %}{{ opt_value }}: "{{ opt_label }}"{{ ", " if not loop.last else "" }}{% endfor %}{{ '}' }}{% raw %}.get(item.{% endraw %}{{ field.name }}{% raw %}, item.{% endraw %}{{ field.name }}{% raw %}) }}{% endraw %}</td>
+            <td data-col="{{ field.name }}">{% raw %}{{ {% endraw %}{{ '{' }}{% for opt_value, opt_label in field.options %}{{ opt_value }}: "{{ opt_label }}"{{ ", " if not loop.last else "" }}{% endfor %}{{ '}' }}{% raw %}.get(item.{% endraw %}{{ field.name }}{% raw %}, item.{% endraw %}{{ field.name }}{% raw %}) }}{% endraw %}</td>
 {% else %}
-            <td>{% raw %}{{ item.{% endraw %}{{ field.name }}{% raw %} }}{% endraw %}</td>
+            <td data-col="{{ field.name }}">{% raw %}{{ item.{% endraw %}{{ field.name }}{% raw %} }}{% endraw %}</td>
 {% endif %}
 {% endfor %}
-            <td>
+            <td data-col="_actions">
                 <div class="actions">
                     <button type="button" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();openViewModal(this.closest('tr'))">{% raw %}{{ t("common.view") }}{% endraw %}</button>
                     <button type="button" class="btn btn-sm btn-warning" onclick="event.stopPropagation();openMainModal(this.closest('tr'))">{% raw %}{{ t("common.edit") }}{% endraw %}</button>
@@ -196,6 +199,37 @@
 
     </tbody>
 </table>
+</div>
+<!-- Column visibility modal -->
+<div id="colModal" class="modal-overlay">
+    <div class="modal-box col-modal-box">
+        <h3>{% raw %}{{ t("common.columns") }}{% endraw %}</h3>
+        <div class="col-check-list">
+            <label class="col-check-item">
+                <input type="checkbox" data-col-toggle="id" checked>
+                <span>{% raw %}{{ t("common.id") }}{% endraw %}</span>
+            </label>
+{% for rel in entity.relations if rel.type in ("many_to_one", "one_to_one") and rel.field_name != tenant_fk_field %}
+            <label class="col-check-item">
+                <input type="checkbox" data-col-toggle="{{ rel.field_name }}"{{ ' checked' if rel.field_name in entity.representation else '' }}>
+                <span>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ rel.field_name }}{% raw %}") }}{% endraw %}</span>
+            </label>
+{% endfor %}
+{% for field in entity.fields %}
+            <label class="col-check-item">
+                <input type="checkbox" data-col-toggle="{{ field.name }}"{{ ' checked' if field.name in entity.representation else '' }}>
+                <span>{% raw %}{{ t("{% endraw %}{{ entity.name }}.{{ field.name }}{% raw %}") }}{% endraw %}</span>
+            </label>
+{% endfor %}
+            <label class="col-check-item">
+                <input type="checkbox" data-col-toggle="_actions" checked>
+                <span>{% raw %}{{ t("common.actions") }}{% endraw %}</span>
+            </label>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeColModal()">{% raw %}{{ t("common.close") }}{% endraw %}</button>
+        </div>
+    </div>
 </div>
 <!-- Main entity edit modal -->
 <div id="mainModal" class="modal-overlay">
@@ -535,6 +569,50 @@
 {% endif %}
 {% endif %}
 <script>
+/* ── Column visibility ─────────────────────────────── */
+var _colKey = '{{ entity.name }}_cols';
+var _colState = JSON.parse(localStorage.getItem(_colKey) || '{}');
+
+/* Build set of columns that are hidden by default (not in representation) */
+var _colDefaults = {};
+document.querySelectorAll('[data-col-default="hidden"]').forEach(function(el) {
+    _colDefaults[el.getAttribute('data-col')] = false;
+});
+
+function _isColVisible(col) {
+    if (col in _colState) return _colState[col];
+    if (col in _colDefaults) return false;
+    return true;
+}
+
+function _applyColVisibility() {
+    document.querySelectorAll('[data-col]').forEach(function(el) {
+        var col = el.getAttribute('data-col');
+        el.style.display = _isColVisible(col) ? '' : 'none';
+    });
+    document.querySelectorAll('[data-col-toggle]').forEach(function(cb) {
+        var col = cb.getAttribute('data-col-toggle');
+        cb.checked = _isColVisible(col);
+    });
+}
+_applyColVisibility();
+
+document.querySelectorAll('[data-col-toggle]').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+        var col = this.getAttribute('data-col-toggle');
+        _colState[col] = this.checked;
+        localStorage.setItem(_colKey, JSON.stringify(_colState));
+        _applyColVisibility();
+    });
+});
+
+function openColModal() {
+    document.getElementById('colModal').classList.add('open');
+}
+function closeColModal() {
+    document.getElementById('colModal').classList.remove('open');
+}
+
 function openMainModal(row) {
     var d = row.dataset;
     var form = document.getElementById('mainModalForm');

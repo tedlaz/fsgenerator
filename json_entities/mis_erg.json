@@ -1,15 +1,17 @@
 {
   "name": "mis_erg",
   "fields": {
-    "nam": { "type": "string", "maxLength": 100, "isnull": true }
+    "apodoxes": { "type": "value"},
+    "kratiseis_ergazomenou": { "type": "value" },
+    "kratiseis_ergodoti": { "type": "value" }
   },
   "relations": {
     "mis": { "type": "many_to_one", "entity": "mis" },
-    "symbasi": { "type": "many_to_one", "entity": "symbasi" }
+    "employee": { "type": "many_to_one", "entity": "employee" }
   },
   "unique": {
-    "unique_symbasi": ["mis", "symbasi"]
+    "unique_erg": ["mis", "employee"]
   },
-  "representation": ["mis", "symbasi"],
+  "representation": ["mis", "employee"],
   "subform": "mis_erg_details"
 }

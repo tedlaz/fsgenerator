@@ -35,6 +35,7 @@ def generate(entities: list[EntityDef], config: AppConfig) -> list[tuple[str, st
             "all": "All",
             "view": "View",
             "close": "Close",
+            "columns": "Columns",
         },
         "auth": {
             "login": "Login",

@@ -12,7 +12,10 @@
     },
     "run_date": { "type": "iso-date" },
     "year": { "type": "integer" },
-    "month": { "type": "integer" }
+    "month": { "type": "integer" },
+    "apodoxes": { "type": "value" },
+    "kratiseis_ergazomenou": { "type": "value" },
+    "kratiseis_ergodoti": { "type": "value" }
   },
   "relations": {
     "ypokatastima": { "type": "many_to_one", "entity": "ypokatastima" }

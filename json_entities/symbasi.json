@@ -1,6 +1,6 @@
 {
   "name": "symbasi",
-  "representation": ["employee", "start_date"],
+  "representation": ["proslipsi", "start_date"],
   "fields": {
     "start_date": { "type": "iso-date" },
     "diarkeia": {
@@ -29,10 +29,10 @@
     "ores_ergasias": { "type": "integer" }
   },
   "unique": {
-    "name_eponymo": ["employee", "start_date"]
+    "name_eponymo": ["proslipsi", "start_date"]
   },
   "relations": {
-    "employee": { "type": "many_to_one", "entity": "employee" },
+    "proslipsi": { "type": "many_to_one", "entity": "proslipsi" },
     "syllogiki_symbasi": { "type": "many_to_one", "entity": "syllogiki_symbasi" }
   }
 }

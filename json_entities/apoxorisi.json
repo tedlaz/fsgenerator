@@ -1,0 +1,21 @@
+{
+  "name": "apoxorisi",
+  "representation": ["proslipsi", "apoxorisi_date"],
+  "fields": {
+    "apoxorisi_date": { "type": "iso-date" },
+    "apoxorisi_type": {
+      "type": "select",
+      "options": [
+        [1, "Οικειοθελής"],
+        [2, "Απόλυση"],
+        [3, "Σύνταξη"]
+      ]
+    }
+  },
+  "unique": {
+    "unique_name": ["proslipsi", "apoxorisi_date"]
+  },
+  "relations": {
+    "proslipsi": { "type": "one_to_one", "entity": "proslipsi" }
+  }
+}
