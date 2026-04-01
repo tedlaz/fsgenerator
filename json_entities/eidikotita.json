@@ -1,0 +1,11 @@
+{
+  "name": "eidikotita",
+  "representation": ["name"],
+  "fields": {
+    "name": { "type": "string", "maxLength": 30 }
+  },
+  "unique": {
+    "unique_name": ["name"]
+  },
+  "subform": "eidikotita_kodes"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "eidikotita_kodes",
+  "representation": ["eidikotita", "kad"],
+  "fields": {
+    "kad": { "type": "string_numeric", "length": 4 },
+    "eid": { "type": "string_numeric", "length": 6 },
+    "kep": {
+      "type": "select",
+      "options": [
+        [0, ""],
+        [9, "9.Εξαίρεση από Επικουρική"],
+        [10, "10.Ν.1976/91"],
+        [13, "13.Εξαίρεση από κάδο παροχών και Ασθένειας"],
+        [14, "14.Ασφάλιση σπουδαστών σε πρακτική άσκηση"]
+      ]
+    }
+  },
+  "unique": {
+    "unique_eidikotita_kad": ["eidikotita", "kad"]
+  },
+  "relations": {
+    "eidikotita": { "type": "many_to_one", "entity": "eidikotita" },
+    "kpk": { "type": "many_to_one", "entity": "kpk" }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "kpk",
+  "representation": ["code", "name"],
+  "fields": {
+    "code": { "type": "string_numeric", "maxLength": 4 },
+    "name": { "type": "string", "maxLength": 30 }
+  },
+  "unique": {
+    "unique_code": ["code"],
+    "unique_name": ["name"]
+  },
+  "subform": "kpk_d"
+}

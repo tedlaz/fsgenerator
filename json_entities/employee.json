@@ -23,6 +23,6 @@
     "unique_amka": ["amka"]
   },
   "relations": {
-    "ypokatastima": { "type": "many_to_one", "entity": "ypokatastima" }
+    "company": { "type": "many_to_one", "entity": "company" }
   }
 }

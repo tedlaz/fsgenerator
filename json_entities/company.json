@@ -8,5 +8,6 @@
   "unique": {
     "unique_name": ["name"],
     "unique_afm": ["afm"]
-  }
+  },
+  "subform": "ypokatastima"
 }

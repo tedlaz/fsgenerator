@@ -1,0 +1,16 @@
+{
+  "name": "kpk_d",
+  "representation": ["code", "name"],
+  "fields": {
+    "year_month": { "type": "string_numeric", "length": 6 },
+    "employee_rate": { "type": "percent" },
+    "employer_rate": { "type": "percent" }
+  },
+  "unique": {
+    "unique_year_month": ["kpk", "year_month"],
+    "unique_employee_rate": ["employee_rate"]
+  },
+  "relations": {
+    "kpk": { "type": "many_to_one", "entity": "kpk" }
+  }
+}

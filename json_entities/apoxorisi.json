@@ -13,7 +13,7 @@
     }
   },
   "unique": {
-    "unique_name": ["proslipsi", "apoxorisi_date"]
+    "unique_name": ["proslipsi"]
   },
   "relations": {
     "proslipsi": { "type": "one_to_one", "entity": "proslipsi" }
